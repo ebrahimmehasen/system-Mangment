@@ -1,0 +1,25 @@
+// 404 Legends — Prisma schema
+// Phase 1: datasource + generator + minimal User model.
+// The full schema (clients, projects, transactions, payments, expenses,
+// project_files, audit_logs, settings, ...) is implemented in Phase 2 (نقطة 2).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Application users. Auth itself is handled by Supabase Auth;
+/// this table mirrors the profile + role for app-level checks.
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique
+  name      String?
+  role      String   @default("admin")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("users")
+}

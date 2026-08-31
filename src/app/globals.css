@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+/*
+ * 404 Legends — Internal Management System
+ * Dark theme is the default from day one.
+ * All colors are CSS variables so a Light mode can be added later
+ * by overriding these under a [data-theme="light"] selector.
+ */
+
+:root {
+  /* Core surfaces */
+  --background: #0a0a0c;
+  --surface: #111114;
+  --surface-2: #17171b;
+  --border: #26262b;
+
+  /* Text */
+  --foreground: #ededed;
+  --foreground-muted: #a1a1aa;
+
+  /* Accent — single source of truth, safe to change */
+  --accent: #6366f1;
+  --accent-hover: #4f46e5;
+  --accent-foreground: #ffffff;
+
+  /* Status */
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #38bdf8;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --font-sans: var(--font-sans-arabic);
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans-arabic), "IBM Plex Sans Arabic", "Inter",
+    system-ui, -apple-system, sans-serif;
+}

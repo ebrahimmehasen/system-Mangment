@@ -1,7 +1,7 @@
 import type { HTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
-type Tone = "neutral" | "success" | "warning" | "danger" | "accent";
+type Tone = "neutral" | "success" | "warning" | "danger" | "accent" | "info";
 
 const tones: Record<Tone, string> = {
   neutral: "bg-surface-2 text-foreground-muted",
@@ -9,6 +9,7 @@ const tones: Record<Tone, string> = {
   warning: "bg-warning/10 text-warning",
   danger: "bg-danger/10 text-danger",
   accent: "bg-accent/10 text-accent",
+  info: "bg-info/10 text-info",
 };
 
 export function Badge({

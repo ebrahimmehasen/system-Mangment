@@ -18,6 +18,7 @@ import { DeleteExpenseButton } from "@/components/finance/DeleteExpenseButton";
 import { MeetingsTable } from "@/components/calendar/MeetingsTable";
 import { MeetingFormModal } from "@/components/calendar/MeetingFormModal";
 import { createMeetingAction } from "@/server/meeting-actions";
+import { MilestonesTimeline } from "@/components/timeline/MilestonesTimeline";
 
 const toDateInput = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
 
@@ -51,6 +52,7 @@ export default async function ProjectDetailsPage({
             project: { select: { id: true, name: true } },
           },
         },
+        milestones: { orderBy: { sortOrder: "asc" } },
         _count: { select: { payments: true, expenses: true, files: true } },
       },
     }),
@@ -164,6 +166,9 @@ export default async function ProjectDetailsPage({
           {project.description || "لا يوجد وصف."}
         </p>
       </Card>
+
+      {/* Timeline / milestones */}
+      <MilestonesTimeline projectId={project.id} milestones={project.milestones} />
 
       {/* Files */}
       <Card className="p-0">

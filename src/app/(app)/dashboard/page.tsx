@@ -7,6 +7,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { formatEgp } from "@/lib/money";
 import { computeDashboard } from "@/lib/services/dashboard";
 import { buildActivityFeed } from "@/lib/services/activity";
+import { AgendaWidget } from "@/components/dashboard/AgendaWidget";
 
 export default async function DashboardPage() {
   const user = await requireUser();
@@ -118,6 +119,8 @@ export default async function DashboardPage() {
         </Card>
       ) : (
         <>
+          <AgendaWidget />
+
           {/* Financial overview */}
           <section>
             <h2 className="mb-3 text-sm font-semibold text-foreground-muted">

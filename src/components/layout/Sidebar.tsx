@@ -12,6 +12,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { href: "/dashboard", label: "لوحة التحكم" },
+  { href: "/clients", label: "العملاء" },
   { href: "/team", label: "المشرفون" },
 ];
 

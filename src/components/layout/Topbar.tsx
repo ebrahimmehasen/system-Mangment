@@ -1,0 +1,20 @@
+import { signOutAction } from "@/server/auth-actions";
+import type { CurrentUser } from "@/lib/auth";
+
+export function Topbar({ user }: { user: CurrentUser }) {
+  return (
+    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-4">
+      <div className="text-sm text-foreground-muted">
+        {user.name || user.email}
+      </div>
+      <form action={signOutAction}>
+        <button
+          type="submit"
+          className="rounded-md px-3 py-1.5 text-sm text-foreground-muted transition-colors hover:bg-surface-2 hover:text-foreground"
+        >
+          تسجيل الخروج
+        </button>
+      </form>
+    </header>
+  );
+}

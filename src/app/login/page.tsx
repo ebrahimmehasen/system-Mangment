@@ -1,22 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
+import { signInAction, type ActionState } from "@/server/auth-actions";
 
-/**
- * Login screen — visual only for now.
- * Real Supabase Auth wiring is implemented in Phase 3 (نقطة 3).
- */
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    // Intentionally no-op until Phase 3.
-  }
+  const [state, formAction, pending] = useActionState<ActionState, FormData>(
+    signInAction,
+    {},
+  );
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
@@ -34,29 +28,36 @@ export default function LoginPage() {
         </div>
 
         <Card>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <form action={formAction} className="flex flex-col gap-4">
             <Input
               id="email"
+              name="email"
               type="email"
               label="البريد الإلكتروني"
               placeholder="you@404legend.space"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
               dir="ltr"
+              required
             />
             <Input
               id="password"
+              name="password"
               type="password"
               label="كلمة المرور"
               placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
               dir="ltr"
+              required
             />
-            <Button type="submit" className="mt-2 w-full">
-              تسجيل الدخول
+
+            {state.error && (
+              <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">
+                {state.error}
+              </p>
+            )}
+
+            <Button type="submit" className="mt-2 w-full" disabled={pending}>
+              {pending ? "جارٍ الدخول…" : "تسجيل الدخول"}
             </Button>
           </form>
         </Card>

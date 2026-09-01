@@ -1,0 +1,14 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="404 Legends">
+  <defs>
+    <linearGradient id="l404" x1="60" y1="6" x2="60" y2="114" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3AA0FF"/>
+      <stop offset="1" stop-color="#1546C8"/>
+    </linearGradient>
+  </defs>
+  <path d="M60 5 108 32.5 108 87.5 60 115 12 87.5 12 32.5Z"
+        stroke="url(#l404)" stroke-width="9" stroke-linejoin="round" fill="none"/>
+  <text x="60" y="61" text-anchor="middle" dominant-baseline="central"
+        font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif"
+        font-weight="900" font-size="40" letter-spacing="-2"
+        fill="url(#l404)">404</text>
+</svg>

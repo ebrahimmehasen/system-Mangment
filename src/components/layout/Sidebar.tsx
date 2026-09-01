@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
+import { Logo } from "@/components/Logo";
 
 interface NavItem {
   href: string;
@@ -20,9 +21,7 @@ export function Sidebar() {
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-l border-border bg-surface p-4 md:flex">
       <div className="mb-6 flex items-center gap-2 px-2">
-        <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface-2 text-sm font-bold text-accent">
-          404
-        </span>
+        <Logo size={28} />
         <span dir="ltr" className="text-sm font-semibold">
           404 Legends
         </span>

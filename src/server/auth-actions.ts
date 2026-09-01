@@ -10,6 +10,8 @@ import { prisma } from "@/lib/db/prisma";
 export interface ActionState {
   error?: string;
   success?: string;
+  /** echoed back so the form can repopulate after a failed submit */
+  values?: Record<string, string>;
 }
 
 export async function signInAction(
@@ -20,14 +22,14 @@ export async function signInAction(
   const password = String(formData.get("password") ?? "");
 
   if (!email || !password) {
-    return { error: "أدخل البريد الإلكتروني وكلمة المرور." };
+    return { error: "أدخل البريد الإلكتروني وكلمة المرور.", values: { email } };
   }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    return { error: "بيانات الدخول غير صحيحة." };
+    return { error: "بيانات الدخول غير صحيحة.", values: { email } };
   }
 
   redirect("/dashboard");

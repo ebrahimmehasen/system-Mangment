@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
+import { Logo } from "@/components/Logo";
 import { signInAction, type ActionState } from "@/server/auth-actions";
 
 export default function LoginPage() {
@@ -15,10 +16,8 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <div className="mb-2 inline-flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-surface text-lg font-bold text-accent">
-            404
-          </div>
+        <div className="mb-8 flex flex-col items-center text-center">
+          <Logo size={56} className="mb-3" />
           <h1 dir="ltr" className="text-xl font-semibold">
             404 Legends
           </h1>
@@ -28,7 +27,13 @@ export default function LoginPage() {
         </div>
 
         <Card>
-          <form action={formAction} className="flex flex-col gap-4">
+          {/* key forces the uncontrolled inputs to remount after each
+              action result so the email can be repopulated on error */}
+          <form
+            key={state.error ? state.values?.email : "fresh"}
+            action={formAction}
+            className="flex flex-col gap-4"
+          >
             <Input
               id="email"
               name="email"
@@ -36,6 +41,7 @@ export default function LoginPage() {
               label="البريد الإلكتروني"
               placeholder="you@404legend.space"
               autoComplete="email"
+              defaultValue={state.values?.email ?? ""}
               dir="ltr"
               required
             />

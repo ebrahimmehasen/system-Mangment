@@ -4,11 +4,14 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/Card";
 import { formatEgp } from "@/lib/money";
+import { formatFileSize } from "@/lib/format";
 import { computeProjectFinancials } from "@/lib/services/projects";
 import { updateProjectAction } from "@/server/project-actions";
 import { ProjectFormModal } from "../ProjectFormModal";
 import { DeleteProjectButton } from "../DeleteProjectButton";
 import { StatusChanger } from "./StatusChanger";
+import { FileUploader } from "./FileUploader";
+import { DeleteFileButton } from "./DeleteFileButton";
 
 const toDateInput = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
 
@@ -27,6 +30,10 @@ export default async function ProjectDetailsPage({
         client: { select: { id: true, name: true } },
         payments: { select: { amountEgp: true } },
         expenses: { where: { type: "project" }, select: { amountEgp: true } },
+        files: {
+          orderBy: { createdAt: "desc" },
+          include: { uploader: { select: { name: true, email: true } } },
+        },
         _count: { select: { payments: true, expenses: true, files: true } },
       },
     }),
@@ -138,11 +145,77 @@ export default async function ProjectDetailsPage({
         </p>
       </Card>
 
-      {/* Placeholder sections — implemented in نقاط 6 و 7 */}
+      {/* Files */}
+      <Card className="p-0">
+        <div className="border-b border-border p-4">
+          <h2 className="mb-3 text-base font-semibold">
+            ملفات المشروع ({project.files.length})
+          </h2>
+          <FileUploader projectId={project.id} />
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-right text-foreground-muted">
+                <th className="px-4 py-3 font-medium">اسم الملف</th>
+                <th className="px-4 py-3 font-medium">النوع</th>
+                <th className="px-4 py-3 font-medium">الحجم</th>
+                <th className="px-4 py-3 font-medium">رفعه</th>
+                <th className="px-4 py-3 font-medium">التاريخ</th>
+                <th className="px-4 py-3 font-medium">إجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              {project.files.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-foreground-muted">
+                    لا توجد ملفات بعد.
+                  </td>
+                </tr>
+              )}
+              {project.files.map((file) => (
+                <tr key={file.id} className="border-b border-border last:border-0">
+                  <td className="px-4 py-3">{file.fileName}</td>
+                  <td className="px-4 py-3 text-foreground-muted">PDF</td>
+                  <td className="px-4 py-3 text-foreground-muted">
+                    {formatFileSize(file.fileSize)}
+                  </td>
+                  <td className="px-4 py-3 text-foreground-muted">
+                    {file.uploader?.name || file.uploader?.email || "—"}
+                  </td>
+                  <td className="px-4 py-3 text-foreground-muted">
+                    {dateFmt.format(file.createdAt)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-3">
+                      <a
+                        href={`/api/projects/${project.id}/files/${file.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-accent hover:underline"
+                      >
+                        عرض
+                      </a>
+                      <a
+                        href={`/api/projects/${project.id}/files/${file.id}?mode=download`}
+                        className="text-accent hover:underline"
+                      >
+                        تنزيل
+                      </a>
+                      <DeleteFileButton fileId={file.id} fileName={file.fileName} />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* Placeholder sections — implemented in نقاط 7 و 8 */}
       <div className="grid gap-4 sm:grid-cols-2">
         <PlaceholderSection title="المدفوعات" note="تُضاف في النقطة 7" />
         <PlaceholderSection title="المصروفات" note="تُضاف في النقطة 7" />
-        <PlaceholderSection title="الملفات" note="تُضاف في النقطة 6" />
         <PlaceholderSection title="النشاط" note="يُضاف في النقطة 8" />
       </div>
     </div>

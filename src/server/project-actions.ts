@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 import { requireUser } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { parseProjectForm } from "@/lib/services/projects";
+import { removeFromStorage } from "@/lib/storage";
 
 export interface ProjectActionState {
   error?: string;
@@ -204,6 +205,7 @@ export async function deleteProjectAction(
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: {
+      files: { select: { storageKey: true } },
       _count: { select: { payments: true, expenses: true, transactions: true } },
     },
   });
@@ -217,6 +219,19 @@ export async function deleteProjectAction(
     return {
       error: `لا يمكن حذف المشروع لوجود سجلات مالية مرتبطة به (${payments} دفعة، ${expenses} مصروف). عالج السجلات أولًا.`,
     };
+  }
+
+  // Remove the project's file objects from Storage before the DB cascade
+  // wipes their rows, so nothing is left orphaned in the bucket.
+  if (project.files.length > 0) {
+    const removed = await removeFromStorage(
+      project.files.map((file) => file.storageKey),
+    );
+    if (removed.error) {
+      return {
+        error: `تعذّر حذف ملفات المشروع من التخزين: ${removed.error.message}`,
+      };
+    }
   }
 
   try {

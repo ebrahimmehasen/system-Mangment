@@ -58,7 +58,7 @@ export const WEEKDAY_LABELS = [
   "الجمعة",
 ];
 
-export type CalEventType = "meeting" | "milestone" | "reminder";
+export type CalEventType = "meeting" | "milestone" | "reminder" | "delivery";
 
 export interface CalEvent {
   id: string;
@@ -134,6 +134,27 @@ export function reminderToEvent(r: {
     href: "/reminders",
     tone: "info",
     done: !!r.doneAt,
+  };
+}
+
+export function deliveryToEvent(p: {
+  id: string;
+  name: string;
+  expectedDeliveryDate: Date;
+  actualDeliveryDate: Date | null;
+  status: string;
+}): CalEvent {
+  return {
+    id: `delivery-${p.id}`,
+    type: "delivery",
+    day: ymdInTz(p.expectedDeliveryDate),
+    time: "",
+    title: `تسليم: ${p.name}`,
+    href: `/projects/${p.id}`,
+    tone: "accent",
+    done:
+      !!p.actualDeliveryDate ||
+      ["Completed", "Delivered", "Cancelled"].includes(p.status),
   };
 }
 

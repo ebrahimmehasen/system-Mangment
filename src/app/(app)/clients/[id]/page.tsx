@@ -7,8 +7,10 @@ import { Badge } from "@/components/ui/Badge";
 import { formatEgp } from "@/lib/money";
 import { computeClientFinancialSummary } from "@/lib/services/clients";
 import { updateClientAction } from "@/server/client-actions";
+import { createProjectAction } from "@/server/project-actions";
 import { ClientFormModal } from "../ClientFormModal";
 import { DeleteClientButton } from "../DeleteClientButton";
+import { ProjectFormModal } from "../../projects/ProjectFormModal";
 
 export default async function ClientProfilePage({
   params,
@@ -35,6 +37,12 @@ export default async function ClientProfilePage({
   });
 
   if (!client) notFound();
+
+  const statusRows = await prisma.projectStatus.findMany({
+    orderBy: { sortOrder: "asc" },
+    select: { name: true },
+  });
+  const statuses = statusRows.map((s) => s.name);
 
   const summary = computeClientFinancialSummary(client.projects);
   const dateFmt = new Intl.DateTimeFormat("ar-EG", { dateStyle: "medium" });
@@ -112,6 +120,15 @@ export default async function ClientProfilePage({
           <h2 className="text-base font-semibold">
             المشاريع ({client.projects.length})
           </h2>
+          <ProjectFormModal
+            mode="create"
+            action={createProjectAction}
+            clients={[{ id: client.id, name: client.name }]}
+            statuses={statuses}
+            project={{ clientId: client.id }}
+            triggerLabel="+ مشروع جديد"
+            triggerVariant="secondary"
+          />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -130,13 +147,20 @@ export default async function ClientProfilePage({
                     colSpan={4}
                     className="px-4 py-10 text-center text-foreground-muted"
                   >
-                    لا توجد مشاريع لهذا العميل بعد. (تُضاف في النقطة 5)
+                    لا توجد مشاريع لهذا العميل بعد.
                   </td>
                 </tr>
               )}
               {client.projects.map((p) => (
                 <tr key={p.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3">{p.name}</td>
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/projects/${p.id}`}
+                      className="text-accent hover:underline"
+                    >
+                      {p.name}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3">
                     <Badge>{p.status}</Badge>
                   </td>

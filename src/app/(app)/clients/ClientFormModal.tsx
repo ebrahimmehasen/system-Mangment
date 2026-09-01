@@ -56,7 +56,11 @@ export function ClientFormModal({
         onClose={() => setOpen(false)}
         title={mode === "create" ? "عميل جديد" : "تعديل بيانات العميل"}
       >
-        <form action={formAction} className="flex flex-col gap-4">
+        <form
+          key={state.fieldErrors ? JSON.stringify(state.values) : "form"}
+          action={formAction}
+          className="flex flex-col gap-4"
+        >
           <TextField
             id="name"
             name="name"

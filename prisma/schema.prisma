@@ -52,13 +52,18 @@ model User {
   role      String   @default("admin")
   createdAt DateTime @default(now()) @map("created_at")
 
-  clientsCreated  Client[]      @relation("ClientCreatedBy")
-  projectsCreated Project[]     @relation("ProjectCreatedBy")
-  filesUploaded   ProjectFile[] @relation("FileUploadedBy")
-  transactions    Transaction[] @relation("TransactionCreatedBy")
-  payments        Payment[]     @relation("PaymentCreatedBy")
-  expenses        Expense[]     @relation("ExpenseCreatedBy")
+  clientsCreated  Client[]           @relation("ClientCreatedBy")
+  projectsCreated Project[]          @relation("ProjectCreatedBy")
+  filesUploaded   ProjectFile[]      @relation("FileUploadedBy")
+  transactions    Transaction[]      @relation("TransactionCreatedBy")
+  payments        Payment[]          @relation("PaymentCreatedBy")
+  expenses        Expense[]          @relation("ExpenseCreatedBy")
   auditLogs       AuditLog[]
+  meetings        Meeting[]          @relation("MeetingCreatedBy")
+  milestones      ProjectMilestone[] @relation("MilestoneCreatedBy")
+  reminders       Reminder[]         @relation("ReminderCreatedBy")
+  notifications   Notification[]
+  alertDismissals AlertDismissal[]
 
   @@map("users")
 }
@@ -82,6 +87,8 @@ model Client {
   projects     Project[]
   transactions Transaction[]
   payments     Payment[]
+  meetings     Meeting[]
+  reminders    Reminder[]
 
   @@index([status])
   @@map("clients")
@@ -105,12 +112,15 @@ model Project {
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
-  client       Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  creator      User?         @relation("ProjectCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  client       Client             @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  creator      User?              @relation("ProjectCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
   files        ProjectFile[]
   transactions Transaction[]
   payments     Payment[]
   expenses     Expense[]
+  meetings     Meeting[]
+  milestones   ProjectMilestone[]
+  reminders    Reminder[]
 
   @@index([clientId])
   @@index([status])
@@ -287,4 +297,125 @@ model Setting {
   value String
 
   @@map("settings")
+}
+
+// ═══════════════════ Phase 2: Calendar / Meetings / Timeline / Notifications ═══════════════════
+//
+// All timestamps stored in UTC, displayed in Africa/Cairo.
+
+enum MeetingType {
+  call
+  onsite
+  online
+}
+
+enum MeetingStatus {
+  scheduled
+  done
+  cancelled
+}
+
+/// Meetings/calls, optionally tied to a client and/or project.
+model Meeting {
+  id              String        @id @default(uuid()) @db.Uuid
+  title           String
+  description     String?
+  meetingAt       DateTime      @map("meeting_at")
+  durationMinutes Int?          @map("duration_minutes")
+  location        String?
+  type            MeetingType   @default(call)
+  status          MeetingStatus @default(scheduled)
+  clientId        String?       @map("client_id") @db.Uuid
+  projectId       String?       @map("project_id") @db.Uuid
+  createdBy       String?       @map("created_by") @db.Uuid
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  client    Client?    @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  project   Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  creator   User?      @relation("MeetingCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  reminders Reminder[]
+
+  @@index([meetingAt])
+  @@index([projectId])
+  @@index([clientId])
+  @@index([status])
+  @@map("meetings")
+}
+
+/// Ordered milestones forming a project's timeline.
+model ProjectMilestone {
+  id          String    @id @default(uuid()) @db.Uuid
+  projectId   String    @map("project_id") @db.Uuid
+  title       String
+  description String?
+  dueDate     DateTime? @map("due_date") @db.Date
+  completedAt DateTime? @map("completed_at")
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdBy   String?   @map("created_by") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  creator User?   @relation("MilestoneCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([projectId, sortOrder])
+  @@index([dueDate])
+  @@map("project_milestones")
+}
+
+/// Manual reminders, optionally linked to a client / project / meeting.
+model Reminder {
+  id        String    @id @default(uuid()) @db.Uuid
+  title     String
+  note      String?
+  remindAt  DateTime  @map("remind_at")
+  doneAt    DateTime? @map("done_at")
+  clientId  String?   @map("client_id") @db.Uuid
+  projectId String?   @map("project_id") @db.Uuid
+  meetingId String?   @map("meeting_id") @db.Uuid
+  createdBy String?   @map("created_by") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  client  Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  meeting Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  creator User?    @relation("ReminderCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([remindAt])
+  @@index([doneAt])
+  @@map("reminders")
+}
+
+/// Records that a user dismissed a live-computed alert. `alertKey` is a
+/// stable string like "delivery-soon:{projectId}"; if the underlying
+/// condition changes the key changes and the alert reappears.
+model AlertDismissal {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  alertKey    String   @map("alert_key")
+  dismissedAt DateTime @default(now()) @map("dismissed_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, alertKey])
+  @@map("alert_dismissals")
+}
+
+/// Discrete in-app notifications for a specific user.
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  type      String
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([createdAt])
+  @@map("notifications")
 }

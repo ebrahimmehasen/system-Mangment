@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 export function ExportButtons({ section = "all" }: { section?: string }) {
   const params = useSearchParams();
 
-  const exportHref = (format: "xlsx" | "csv") => {
+  const exportHref = (format: "xlsx" | "csv" | "pdf") => {
     const q = new URLSearchParams(Array.from(params.entries()));
     q.set("format", format);
     q.set("section", section);
@@ -23,9 +23,9 @@ export function ExportButtons({ section = "all" }: { section?: string }) {
       <a href={exportHref("csv")} className={btn}>
         تصدير CSV
       </a>
-      <button type="button" onClick={() => window.print()} className={btn}>
-        طباعة / PDF
-      </button>
+      <a href={exportHref("pdf")} className={btn}>
+        تصدير PDF
+      </a>
     </div>
   );
 }

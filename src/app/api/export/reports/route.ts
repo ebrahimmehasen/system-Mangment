@@ -6,6 +6,7 @@ import { getAdvancedFinancials, advancedToTables } from "@/lib/reports/advanced"
 import { getOperationalReports, operationalToTables } from "@/lib/reports/operational";
 import { buildWorkbook } from "@/lib/export/excel";
 import { buildCsv } from "@/lib/export/csv";
+import { buildReportsPdf } from "@/lib/export/pdf";
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -17,7 +18,9 @@ export async function GET(request: NextRequest) {
   }
 
   const q = request.nextUrl.searchParams;
-  const format = q.get("format") === "csv" ? "csv" : "xlsx";
+  const fmtParam = q.get("format");
+  const format =
+    fmtParam === "csv" ? "csv" : fmtParam === "pdf" ? "pdf" : "xlsx";
   const section = q.get("section") ?? "all";
 
   const dateParams = {
@@ -64,6 +67,19 @@ export async function GET(request: NextRequest) {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": `attachment; filename="${base}-${stamp}.csv"`,
+      },
+    });
+  }
+
+  if (format === "pdf") {
+    const pdf = await buildReportsPdf(
+      { docTitle: "تقارير 404 Legends", period, generatedAt: new Date() },
+      tables,
+    );
+    return new NextResponse(new Uint8Array(pdf), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${base}-${stamp}.pdf"`,
       },
     });
   }

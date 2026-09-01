@@ -18,6 +18,9 @@ export const AUDIT_ENTITIES: Record<string, string> = {
   project_file: "ملف مشروع",
   payment: "دفعة",
   expense: "مصروف",
+  meeting: "اجتماع",
+  milestone: "مرحلة",
+  reminder: "تذكير",
 };
 
 export const actionLabel = (a: string) => AUDIT_ACTIONS[a] ?? a;

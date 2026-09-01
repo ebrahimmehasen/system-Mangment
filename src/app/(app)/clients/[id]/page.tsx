@@ -11,6 +11,9 @@ import { createProjectAction } from "@/server/project-actions";
 import { ClientFormModal } from "../ClientFormModal";
 import { DeleteClientButton } from "../DeleteClientButton";
 import { ProjectFormModal } from "../../projects/ProjectFormModal";
+import { MeetingsTable } from "@/components/calendar/MeetingsTable";
+import { MeetingFormModal } from "@/components/calendar/MeetingFormModal";
+import { createMeetingAction } from "@/server/meeting-actions";
 
 export default async function ClientProfilePage({
   params,
@@ -38,11 +41,26 @@ export default async function ClientProfilePage({
 
   if (!client) notFound();
 
-  const statusRows = await prisma.projectStatus.findMany({
-    orderBy: { sortOrder: "asc" },
-    select: { name: true },
-  });
+  const [statusRows, meetings] = await Promise.all([
+    prisma.projectStatus.findMany({
+      orderBy: { sortOrder: "asc" },
+      select: { name: true },
+    }),
+    prisma.meeting.findMany({
+      where: { clientId: id },
+      orderBy: { meetingAt: "desc" },
+      include: {
+        client: { select: { id: true, name: true } },
+        project: { select: { id: true, name: true } },
+      },
+    }),
+  ]);
   const statuses = statusRows.map((s) => s.name);
+  const clientProjectOpts = client.projects.map((p) => ({
+    id: p.id,
+    name: p.name,
+    clientId: client.id,
+  }));
 
   const summary = computeClientFinancialSummary(client.projects);
   const dateFmt = new Intl.DateTimeFormat("ar-EG", { dateStyle: "medium" });
@@ -185,6 +203,31 @@ export default async function ClientProfilePage({
             </tbody>
           </table>
         </div>
+      </Card>
+
+      {/* Meetings */}
+      <Card className="p-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border p-4">
+          <h2 className="text-base font-semibold">
+            الاجتماعات ({meetings.length})
+          </h2>
+          <MeetingFormModal
+            mode="create"
+            action={createMeetingAction}
+            clients={[{ id: client.id, name: client.name }]}
+            projects={clientProjectOpts}
+            fixedClientId={client.id}
+            triggerLabel="+ اجتماع"
+            triggerVariant="secondary"
+          />
+        </div>
+        <MeetingsTable
+          meetings={meetings}
+          clients={[{ id: client.id, name: client.name }]}
+          projects={clientProjectOpts}
+          showContext={false}
+          emptyText="لا توجد اجتماعات مع هذا العميل."
+        />
       </Card>
     </div>
   );

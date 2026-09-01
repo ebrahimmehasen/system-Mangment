@@ -15,6 +15,9 @@ import { DeleteFileButton } from "./DeleteFileButton";
 import { PaymentFormModal } from "@/components/finance/PaymentFormModal";
 import { ExpenseFormModal } from "@/components/finance/ExpenseFormModal";
 import { DeleteExpenseButton } from "@/components/finance/DeleteExpenseButton";
+import { MeetingsTable } from "@/components/calendar/MeetingsTable";
+import { MeetingFormModal } from "@/components/calendar/MeetingFormModal";
+import { createMeetingAction } from "@/server/meeting-actions";
 
 const toDateInput = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
 
@@ -40,6 +43,13 @@ export default async function ProjectDetailsPage({
         files: {
           orderBy: { createdAt: "desc" },
           include: { uploader: { select: { name: true, email: true } } },
+        },
+        meetings: {
+          orderBy: { meetingAt: "desc" },
+          include: {
+            client: { select: { id: true, name: true } },
+            project: { select: { id: true, name: true } },
+          },
         },
         _count: { select: { payments: true, expenses: true, files: true } },
       },
@@ -321,17 +331,34 @@ export default async function ProjectDetailsPage({
         </div>
       </Card>
 
-      {/* Activity placeholder — نقطة 8 */}
-      <PlaceholderSection title="النشاط" note="يُضاف في النقطة 8" />
+      {/* Meetings */}
+      <Card className="p-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border p-4">
+          <h2 className="text-base font-semibold">
+            الاجتماعات ({project.meetings.length})
+          </h2>
+          <MeetingFormModal
+            mode="create"
+            action={createMeetingAction}
+            clients={[{ id: project.client.id, name: project.client.name }]}
+            projects={[
+              { id: project.id, name: project.name, clientId: project.clientId },
+            ]}
+            fixedProjectId={project.id}
+            triggerLabel="+ اجتماع"
+            triggerVariant="secondary"
+          />
+        </div>
+        <MeetingsTable
+          meetings={project.meetings}
+          clients={clients}
+          projects={[
+            { id: project.id, name: project.name, clientId: project.clientId },
+          ]}
+          showContext={false}
+          emptyText="لا توجد اجتماعات لهذا المشروع."
+        />
+      </Card>
     </div>
-  );
-}
-
-function PlaceholderSection({ title, note }: { title: string; note: string }) {
-  return (
-    <Card>
-      <h2 className="text-base font-semibold">{title}</h2>
-      <p className="mt-2 text-sm text-foreground-muted">{note}</p>
-    </Card>
   );
 }

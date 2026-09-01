@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
+import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/Card";
 import { formatEgp, formatCurrency } from "@/lib/money";
 import { getReportsData, type ReportsParams } from "@/lib/reports/data";
@@ -10,9 +11,11 @@ import {
   MEETING_STATUS_LABELS,
   MEETING_TYPE_LABELS,
 } from "@/lib/services/meetings";
+import { coercePresetFilters } from "@/lib/reports/presets";
 import { ReportsDateFilter } from "./ReportsDateFilter";
 import { ExportButtons } from "@/components/reports/ExportButtons";
 import { PrintHeader } from "@/components/reports/PrintHeader";
+import { PresetsBar } from "@/components/reports/PresetsBar";
 import { ReportCharts } from "@/components/charts/ReportCharts";
 
 type SP = Record<string, string | undefined>;
@@ -22,14 +25,24 @@ export default async function ReportsPage({
 }: {
   searchParams: Promise<SP>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const sp = (await searchParams) as ReportsParams & SP;
-  const [d, chartData, adv, ops] = await Promise.all([
+  const [d, chartData, adv, ops, presetRows] = await Promise.all([
     getReportsData(sp),
     getChartData(sp),
     getAdvancedFinancials(sp),
     getOperationalReports(sp),
+    prisma.reportPreset.findMany({
+      where: { userId: user.id },
+      orderBy: [{ lastUsedAt: "desc" }, { name: "asc" }],
+      select: { id: true, name: true, filters: true },
+    }),
   ]);
+  const presets = presetRows.map((p) => ({
+    id: p.id,
+    name: p.name,
+    filters: coercePresetFilters(p.filters),
+  }));
 
   const sortLink = (
     sortKey: "csort" | "psort",
@@ -59,18 +72,24 @@ export default async function ReportsPage({
         <div>
           <h1 className="text-xl font-semibold">التقارير</h1>
           <p className="mt-1 text-sm text-foreground-muted">
-            الفترة: {d.range.label}
+            الفترة: {d.range.label} ·{" "}
+            <Link href="/reports/center" className="text-accent hover:underline">
+              مركز التقارير
+            </Link>
           </p>
         </div>
         <ExportButtons />
       </div>
 
-      <Card className="no-print">
+      <Card className="no-print flex flex-col gap-4">
         <ReportsDateFilter />
+        <div className="border-t border-border pt-4">
+          <PresetsBar presets={presets} />
+        </div>
       </Card>
 
       {/* Charts */}
-      <section className="flex flex-col gap-3 break-inside-avoid">
+      <section id="charts" className="flex flex-col gap-3 scroll-mt-20 break-inside-avoid">
         <h2 className="text-sm font-semibold text-foreground-muted">رسوم بيانية</h2>
         <ReportCharts data={chartData} />
       </section>
@@ -556,7 +575,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <Card className="break-inside-avoid">
+    <Card id={section} className="scroll-mt-20 break-inside-avoid">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="text-base font-semibold">{title}</h2>

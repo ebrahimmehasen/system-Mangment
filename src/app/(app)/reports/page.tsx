@@ -5,6 +5,11 @@ import { formatEgp, formatCurrency } from "@/lib/money";
 import { getReportsData, type ReportsParams } from "@/lib/reports/data";
 import { getChartData } from "@/lib/reports/charts";
 import { getAdvancedFinancials } from "@/lib/reports/advanced";
+import { getOperationalReports } from "@/lib/reports/operational";
+import {
+  MEETING_STATUS_LABELS,
+  MEETING_TYPE_LABELS,
+} from "@/lib/services/meetings";
 import { ReportsDateFilter } from "./ReportsDateFilter";
 import { ExportButtons } from "@/components/reports/ExportButtons";
 import { PrintHeader } from "@/components/reports/PrintHeader";
@@ -19,10 +24,11 @@ export default async function ReportsPage({
 }) {
   await requireUser();
   const sp = (await searchParams) as ReportsParams & SP;
-  const [d, chartData, adv] = await Promise.all([
+  const [d, chartData, adv, ops] = await Promise.all([
     getReportsData(sp),
     getChartData(sp),
     getAdvancedFinancials(sp),
+    getOperationalReports(sp),
   ]);
 
   const sortLink = (
@@ -371,6 +377,162 @@ export default async function ReportsPage({
               formatEgp(adv.cashflow.closing),
             ],
           ]}
+        />
+      </Section>
+
+      <h2 className="mt-2 text-sm font-semibold text-foreground-muted">
+        تقارير تشغيلية
+      </h2>
+
+      {/* 11. Project status */}
+      <Section
+        title="حالة المشاريع"
+        note={`لقطة حالية. متأخرة عن التسليم: ${ops.projectStatus.health.overdueByDelivery} · بها مراحل متأخرة: ${ops.projectStatus.health.withOverdueMilestones} · المراحل المنجزة: ${ops.projectStatus.health.milestonesDone}/${ops.projectStatus.health.milestonesTotal}`}
+        section="project-status"
+      >
+        <SimpleTable
+          head={["الحالة", "العدد", "القيمة النهائية", "المدفوع", "المتبقي"]}
+          rows={[
+            ...ops.projectStatus.rows.map((r) => [
+              r.status,
+              r.count,
+              formatEgp(r.finalValue),
+              formatEgp(r.paid),
+              formatEgp(r.remaining),
+            ]),
+            [
+              "الإجمالي",
+              ops.projectStatus.total.count,
+              formatEgp(ops.projectStatus.total.finalValue),
+              formatEgp(ops.projectStatus.total.paid),
+              formatEgp(ops.projectStatus.total.remaining),
+            ],
+          ]}
+          empty="لا توجد مشاريع."
+        />
+      </Section>
+
+      {/* 12. Meetings */}
+      <Section
+        title={`تقرير الاجتماعات — ${ops.meetings.byStatus.total}`}
+        note="يتأثر بالفلتر الزمني (حسب موعد الاجتماع)."
+        section="meetings"
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <h3 className="mb-2 text-sm text-foreground-muted">حسب الحالة</h3>
+            <SimpleTable
+              head={["الحالة", "العدد"]}
+              rows={[
+                [MEETING_STATUS_LABELS.scheduled, ops.meetings.byStatus.scheduled],
+                [MEETING_STATUS_LABELS.done, ops.meetings.byStatus.done],
+                [MEETING_STATUS_LABELS.cancelled, ops.meetings.byStatus.cancelled],
+              ]}
+            />
+          </div>
+          <div>
+            <h3 className="mb-2 text-sm text-foreground-muted">حسب النوع</h3>
+            <SimpleTable
+              head={["النوع", "العدد"]}
+              rows={[
+                [MEETING_TYPE_LABELS.call, ops.meetings.byType.call],
+                [MEETING_TYPE_LABELS.onsite, ops.meetings.byType.onsite],
+                [MEETING_TYPE_LABELS.online, ops.meetings.byType.online],
+              ]}
+            />
+          </div>
+        </div>
+        {ops.meetings.byClient.length > 0 && (
+          <div className="mt-4">
+            <h3 className="mb-2 text-sm text-foreground-muted">حسب العميل</h3>
+            <SimpleTable
+              head={["العميل", "مجدول", "تم", "ملغي", "الإجمالي"]}
+              rows={ops.meetings.byClient.map((r) => [
+                r.name,
+                r.scheduled,
+                r.done,
+                r.cancelled,
+                r.total,
+              ])}
+            />
+          </div>
+        )}
+        {ops.meetings.byStatus.total === 0 && (
+          <p className="mt-3 text-sm text-foreground-muted">
+            لا توجد اجتماعات في هذه الفترة.
+          </p>
+        )}
+      </Section>
+
+      {/* 13. Milestone completion */}
+      <Section
+        title="إنجاز المراحل"
+        note="الإنجاز خلال الفترة (في الموعد مقابل متأخر) + المراحل المفتوحة المتأخرة (لقطة حالية)."
+        section="milestone-completion"
+      >
+        <SimpleTable
+          head={[
+            "المشروع",
+            "العميل",
+            "منجزة",
+            "في الموعد",
+            "متأخرة",
+            "مفتوحة ومتأخرة",
+          ]}
+          rows={[
+            ...ops.milestones.rows.map((r) => [
+              r.projectName,
+              r.clientName,
+              r.completed,
+              r.onTime,
+              r.late,
+              r.openOverdue,
+            ]),
+            [
+              "الإجمالي",
+              "",
+              ops.milestones.totals.completed,
+              ops.milestones.totals.onTime,
+              ops.milestones.totals.late,
+              ops.milestones.totals.openOverdue,
+            ],
+          ]}
+          empty="لا توجد مراحل مطابقة."
+        />
+        <p className="mt-3 text-sm">
+          نسبة الإنجاز في الموعد:{" "}
+          <span
+            className={
+              (ops.milestones.totals.onTimeRate ?? 100) >= 80
+                ? "text-success"
+                : "text-danger"
+            }
+          >
+            {ops.milestones.totals.onTimeRate === null
+              ? "—"
+              : `${ops.milestones.totals.onTimeRate}%`}
+          </span>
+        </p>
+      </Section>
+
+      {/* 14. User activity */}
+      <Section
+        title={`نشاط المستخدمين — ${ops.userActivity.total} عملية`}
+        note="من سجل التدقيق، يتأثر بالفلتر الزمني."
+        section="user-activity"
+      >
+        <SimpleTable
+          head={["المستخدم", "الإجمالي", "إنشاء", "تعديل", "حذف", "تغيير الحالة", "أخرى"]}
+          rows={ops.userActivity.rows.map((r) => [
+            r.userName,
+            r.total,
+            r.created,
+            r.updated,
+            r.deleted,
+            r.statusChanged,
+            r.other,
+          ])}
+          empty="لا يوجد نشاط في هذه الفترة."
         />
       </Section>
     </div>

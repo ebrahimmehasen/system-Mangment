@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getReportsData } from "@/lib/reports/data";
 import { reportsToTables } from "@/lib/reports/tables";
 import { getAdvancedFinancials, advancedToTables } from "@/lib/reports/advanced";
+import { getOperationalReports, operationalToTables } from "@/lib/reports/operational";
 import { buildWorkbook } from "@/lib/export/excel";
 import { buildCsv } from "@/lib/export/csv";
 
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
     to: q.get("to") ?? undefined,
   };
 
-  const [data, advanced] = await Promise.all([
+  const [data, advanced, operational] = await Promise.all([
     getReportsData({
       ...dateParams,
       csort: q.get("csort") ?? undefined,
@@ -35,9 +36,14 @@ export async function GET(request: NextRequest) {
       pq: q.get("pq") ?? undefined,
     }),
     getAdvancedFinancials(dateParams),
+    getOperationalReports(dateParams),
   ]);
 
-  const allTables = [...reportsToTables(data), ...advancedToTables(advanced)];
+  const allTables = [
+    ...reportsToTables(data),
+    ...advancedToTables(advanced),
+    ...operationalToTables(operational),
+  ];
   const tables =
     section === "all" ? allTables : allTables.filter((t) => t.key === section);
   if (tables.length === 0) {

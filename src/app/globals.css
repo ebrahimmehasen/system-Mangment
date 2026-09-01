@@ -57,3 +57,57 @@ body {
   font-family: var(--font-sans-arabic), "IBM Plex Sans Arabic", "Inter",
     system-ui, -apple-system, sans-serif;
 }
+
+/* Print-only content is hidden on screen */
+.print-only {
+  display: none;
+}
+
+@media print {
+  /* strip the app chrome */
+  aside,
+  header,
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  main {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* flatten cards for paper */
+  .rounded-lg,
+  .rounded-md {
+    box-shadow: none !important;
+  }
+
+  a {
+    color: #000000 !important;
+    text-decoration: none !important;
+  }
+
+  table {
+    border-collapse: collapse !important;
+  }
+
+  th,
+  td {
+    border: 1px solid #999 !important;
+  }
+
+  section,
+  .break-inside-avoid {
+    break-inside: avoid;
+  }
+}

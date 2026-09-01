@@ -14,6 +14,8 @@ const NAV: NavItem[] = [
   { href: "/dashboard", label: "لوحة التحكم" },
   { href: "/clients", label: "العملاء" },
   { href: "/projects", label: "المشاريع" },
+  { href: "/payments", label: "المدفوعات" },
+  { href: "/expenses", label: "المصروفات" },
   { href: "/team", label: "المشرفون" },
 ];
 

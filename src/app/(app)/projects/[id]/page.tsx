@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/Card";
-import { formatEgp } from "@/lib/money";
+import { formatEgp, formatOriginalWithEgp } from "@/lib/money";
 import { formatFileSize } from "@/lib/format";
 import { computeProjectFinancials } from "@/lib/services/projects";
 import { updateProjectAction } from "@/server/project-actions";
@@ -12,6 +12,9 @@ import { DeleteProjectButton } from "../DeleteProjectButton";
 import { StatusChanger } from "./StatusChanger";
 import { FileUploader } from "./FileUploader";
 import { DeleteFileButton } from "./DeleteFileButton";
+import { PaymentFormModal } from "@/components/finance/PaymentFormModal";
+import { ExpenseFormModal } from "@/components/finance/ExpenseFormModal";
+import { DeleteExpenseButton } from "@/components/finance/DeleteExpenseButton";
 
 const toDateInput = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
 
@@ -23,13 +26,17 @@ export default async function ProjectDetailsPage({
   await requireUser();
   const { id } = await params;
 
-  const [project, clients, statusRows] = await Promise.all([
+  const [project, clients, statusRows, categories, methodRows] = await Promise.all([
     prisma.project.findUnique({
       where: { id },
       include: {
         client: { select: { id: true, name: true } },
-        payments: { select: { amountEgp: true } },
-        expenses: { where: { type: "project" }, select: { amountEgp: true } },
+        payments: { orderBy: { date: "desc" }, include: { creator: { select: { name: true } } } },
+        expenses: {
+          where: { type: "project" },
+          orderBy: { date: "desc" },
+          include: { category: { select: { name: true } } },
+        },
         files: {
           orderBy: { createdAt: "desc" },
           include: { uploader: { select: { name: true, email: true } } },
@@ -39,11 +46,14 @@ export default async function ProjectDetailsPage({
     }),
     prisma.client.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.projectStatus.findMany({ orderBy: { sortOrder: "asc" }, select: { name: true } }),
+    prisma.expenseCategory.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.paymentMethod.findMany({ orderBy: { sortOrder: "asc" }, select: { name: true } }),
   ]);
 
   if (!project) notFound();
 
   const statuses = statusRows.map((s) => s.name);
+  const methods = methodRows.map((m) => m.name);
   const f = computeProjectFinancials(project);
   const dateFmt = new Intl.DateTimeFormat("ar-EG", { dateStyle: "medium" });
 
@@ -212,12 +222,107 @@ export default async function ProjectDetailsPage({
         </div>
       </Card>
 
-      {/* Placeholder sections — implemented in نقاط 7 و 8 */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <PlaceholderSection title="المدفوعات" note="تُضاف في النقطة 7" />
-        <PlaceholderSection title="المصروفات" note="تُضاف في النقطة 7" />
-        <PlaceholderSection title="النشاط" note="يُضاف في النقطة 8" />
-      </div>
+      {/* Payments */}
+      <Card className="p-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border p-4">
+          <h2 className="text-base font-semibold">
+            المدفوعات ({project.payments.length}) — إجمالي مدفوع {formatEgp(f.paid)} · متبقٍ {formatEgp(f.remaining)}
+          </h2>
+          <PaymentFormModal
+            clients={[{ id: project.client.id, name: project.client.name }]}
+            projects={[{ id: project.id, name: project.name, clientId: project.clientId }]}
+            methods={methods}
+            fixedProject={{ id: project.id, clientId: project.clientId }}
+          />
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-right text-foreground-muted">
+                <th className="px-4 py-3 font-medium">التاريخ</th>
+                <th className="px-4 py-3 font-medium">المبلغ</th>
+                <th className="px-4 py-3 font-medium">الطريقة</th>
+                <th className="px-4 py-3 font-medium">رقم مرجعي</th>
+                <th className="px-4 py-3 font-medium">ملاحظات</th>
+              </tr>
+            </thead>
+            <tbody>
+              {project.payments.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-foreground-muted">
+                    لا توجد مدفوعات بعد.
+                  </td>
+                </tr>
+              )}
+              {project.payments.map((p) => (
+                <tr key={p.id} className="border-b border-border last:border-0">
+                  <td className="px-4 py-3 text-foreground-muted">{dateFmt.format(p.date)}</td>
+                  <td className="px-4 py-3">
+                    {formatOriginalWithEgp(p.amountOriginal, p.currency, p.amountEgp)}
+                  </td>
+                  <td className="px-4 py-3 text-foreground-muted">{p.method || "—"}</td>
+                  <td className="px-4 py-3 text-foreground-muted">{p.referenceNumber || "—"}</td>
+                  <td className="px-4 py-3 text-foreground-muted">{p.notes || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* Expenses */}
+      <Card className="p-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border p-4">
+          <h2 className="text-base font-semibold">
+            مصروفات المشروع ({project.expenses.length}) — إجمالي {formatEgp(f.projectExpenses)}
+          </h2>
+          <ExpenseFormModal
+            categories={categories}
+            projects={[{ id: project.id, name: project.name }]}
+            methods={methods}
+            fixedProject={{ id: project.id }}
+            triggerLabel="+ مصروف للمشروع"
+          />
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-right text-foreground-muted">
+                <th className="px-4 py-3 font-medium">التاريخ</th>
+                <th className="px-4 py-3 font-medium">التصنيف</th>
+                <th className="px-4 py-3 font-medium">المبلغ</th>
+                <th className="px-4 py-3 font-medium">الوصف</th>
+                <th className="px-4 py-3 font-medium">إجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              {project.expenses.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-foreground-muted">
+                    لا توجد مصروفات بعد.
+                  </td>
+                </tr>
+              )}
+              {project.expenses.map((e) => (
+                <tr key={e.id} className="border-b border-border last:border-0">
+                  <td className="px-4 py-3 text-foreground-muted">{dateFmt.format(e.date)}</td>
+                  <td className="px-4 py-3">{e.category.name}</td>
+                  <td className="px-4 py-3">
+                    {formatOriginalWithEgp(e.amountOriginal, e.currency, e.amountEgp)}
+                  </td>
+                  <td className="px-4 py-3 text-foreground-muted">{e.description || "—"}</td>
+                  <td className="px-4 py-3">
+                    <DeleteExpenseButton expenseId={e.id} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* Activity placeholder — نقطة 8 */}
+      <PlaceholderSection title="النشاط" note="يُضاف في النقطة 8" />
     </div>
   );
 }

@@ -28,3 +28,16 @@ export function formatEgp(v: Decimalish): string {
 export function formatCurrency(v: Decimalish, currency: string): string {
   return `${egpFmt.format(new Prisma.Decimal(v).toNumber())} ${currency}`;
 }
+
+/**
+ * "١٬٠٠٠٫٠٠ USD (٤٩٬٠٠٠٫٠٠ ج.م)" — original amount with its EGP equivalent.
+ * For EGP amounts, just the EGP form.
+ */
+export function formatOriginalWithEgp(
+  amountOriginal: Decimalish,
+  currency: string,
+  amountEgp: Decimalish,
+): string {
+  if (currency === "EGP") return formatEgp(amountEgp);
+  return `${formatCurrency(amountOriginal, currency)} (${formatEgp(amountEgp)})`;
+}

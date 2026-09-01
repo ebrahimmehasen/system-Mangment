@@ -14,11 +14,19 @@ export default function LoginPage() {
   );
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
+      {/* brand glow */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-[38%] h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-25 blur-3xl"
+        style={{ background: "var(--brand-gradient)" }}
+      />
+      <div className="relative w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
-          <Logo size={56} className="mb-3" />
-          <h1 dir="ltr" className="text-xl font-semibold">
+          <div className="mb-4 rounded-2xl border border-border bg-surface/60 p-3 backdrop-blur">
+            <Logo size={52} />
+          </div>
+          <h1 dir="ltr" className="text-xl font-semibold tracking-tight">
             404 Legends
           </h1>
           <p dir="ltr" className="mt-1 text-sm text-foreground-muted">

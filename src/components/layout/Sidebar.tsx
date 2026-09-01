@@ -11,12 +11,15 @@ export function Sidebar() {
 
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-l border-border bg-surface p-4 md:flex">
-      <div className="mb-6 flex items-center gap-2 px-2">
-        <Logo size={28} />
-        <span dir="ltr" className="text-sm font-semibold">
+      <Link
+        href="/dashboard"
+        className="mb-6 flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-surface-2"
+      >
+        <Logo size={26} />
+        <span dir="ltr" className="text-sm font-semibold tracking-tight">
           404 Legends
         </span>
-      </div>
+      </Link>
 
       <nav className="flex flex-col gap-1">
         {NAV.map((item) => (

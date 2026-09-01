@@ -8,20 +8,25 @@
  */
 
 :root {
-  /* Core surfaces */
-  --background: #0a0a0c;
-  --surface: #111114;
-  --surface-2: #17171b;
-  --border: #26262b;
+  /* Core surfaces — blue-tinted charcoal to match the 404 Legends mark */
+  --background: #08090d;
+  --surface: #0f1117;
+  --surface-2: #161922;
+  --border: #232734;
 
   /* Text */
-  --foreground: #ededed;
-  --foreground-muted: #a1a1aa;
+  --foreground: #eef1f6;
+  --foreground-muted: #9aa3b2;
 
-  /* Accent — single source of truth, safe to change */
-  --accent: #6366f1;
-  --accent-hover: #4f46e5;
+  /* Accent — 404 Legends brand blue, single source of truth */
+  --accent: #2f6bff;
+  --accent-hover: #1f52d6;
   --accent-foreground: #ffffff;
+
+  /* Brand mark gradient (bright → deep blue) */
+  --brand-from: #3aa0ff;
+  --brand-to: #1546c8;
+  --brand-gradient: linear-gradient(135deg, var(--brand-from), var(--brand-to));
 
   /* Status */
   --success: #22c55e;
@@ -40,6 +45,8 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-foreground: var(--accent-foreground);
+  --color-brand-from: var(--brand-from);
+  --color-brand-to: var(--brand-to);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);

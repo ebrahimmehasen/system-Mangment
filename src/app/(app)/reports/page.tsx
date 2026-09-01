@@ -3,9 +3,11 @@ import { requireUser } from "@/lib/auth";
 import { Card } from "@/components/ui/Card";
 import { formatEgp } from "@/lib/money";
 import { getReportsData, type ReportsParams } from "@/lib/reports/data";
+import { getChartData } from "@/lib/reports/charts";
 import { ReportsDateFilter } from "./ReportsDateFilter";
 import { ExportButtons } from "@/components/reports/ExportButtons";
 import { PrintHeader } from "@/components/reports/PrintHeader";
+import { ReportCharts } from "@/components/charts/ReportCharts";
 
 type SP = Record<string, string | undefined>;
 
@@ -16,7 +18,7 @@ export default async function ReportsPage({
 }) {
   await requireUser();
   const sp = (await searchParams) as ReportsParams & SP;
-  const d = await getReportsData(sp);
+  const [d, chartData] = await Promise.all([getReportsData(sp), getChartData(sp)]);
 
   const sortLink = (
     sortKey: "csort" | "psort",
@@ -55,6 +57,12 @@ export default async function ReportsPage({
       <Card className="no-print">
         <ReportsDateFilter />
       </Card>
+
+      {/* Charts */}
+      <section className="flex flex-col gap-3 break-inside-avoid">
+        <h2 className="text-sm font-semibold text-foreground-muted">رسوم بيانية</h2>
+        <ReportCharts data={chartData} />
+      </section>
 
       {/* 1. Revenue */}
       <Section title={`تقرير الإيرادات — ${formatEgp(d.revenueTotal)}`} section="revenue">

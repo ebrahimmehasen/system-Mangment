@@ -7,7 +7,9 @@ import { StatCard } from "@/components/ui/StatCard";
 import { formatEgp } from "@/lib/money";
 import { computeDashboard } from "@/lib/services/dashboard";
 import { buildActivityFeed } from "@/lib/services/activity";
+import { getChartData } from "@/lib/reports/charts";
 import { AgendaWidget } from "@/components/dashboard/AgendaWidget";
+import { CashFlowChart } from "@/components/dashboard/CashFlowChart";
 
 export default async function DashboardPage() {
   const user = await requireUser();
@@ -86,6 +88,8 @@ export default async function DashboardPage() {
     clients: recentClients,
     limit: 15,
   });
+
+  const chartData = await getChartData({});
 
   const dtFmt = new Intl.DateTimeFormat("ar-EG", {
     dateStyle: "medium",
@@ -202,6 +206,16 @@ export default async function DashboardPage() {
                 value={data.clients.withOutstanding}
               />
             </div>
+          </section>
+
+          {/* Cash flow chart */}
+          <section>
+            <h2 className="mb-3 text-sm font-semibold text-foreground-muted">
+              التدفق النقدي (آخر 12 شهرًا)
+            </h2>
+            <Card>
+              <CashFlowChart monthly={chartData.monthly} />
+            </Card>
           </section>
 
           {/* Recent activity */}

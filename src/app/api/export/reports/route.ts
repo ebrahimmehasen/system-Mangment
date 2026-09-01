@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getReportsData } from "@/lib/reports/data";
 import { reportsToTables } from "@/lib/reports/tables";
+import { getAdvancedFinancials, advancedToTables } from "@/lib/reports/advanced";
 import { buildWorkbook } from "@/lib/export/excel";
 import { buildCsv } from "@/lib/export/csv";
 
@@ -18,18 +19,25 @@ export async function GET(request: NextRequest) {
   const format = q.get("format") === "csv" ? "csv" : "xlsx";
   const section = q.get("section") ?? "all";
 
-  const data = await getReportsData({
+  const dateParams = {
     range: q.get("range") ?? undefined,
     from: q.get("from") ?? undefined,
     to: q.get("to") ?? undefined,
-    csort: q.get("csort") ?? undefined,
-    cdir: q.get("cdir") ?? undefined,
-    psort: q.get("psort") ?? undefined,
-    pdir: q.get("pdir") ?? undefined,
-    pq: q.get("pq") ?? undefined,
-  });
+  };
 
-  const allTables = reportsToTables(data);
+  const [data, advanced] = await Promise.all([
+    getReportsData({
+      ...dateParams,
+      csort: q.get("csort") ?? undefined,
+      cdir: q.get("cdir") ?? undefined,
+      psort: q.get("psort") ?? undefined,
+      pdir: q.get("pdir") ?? undefined,
+      pq: q.get("pq") ?? undefined,
+    }),
+    getAdvancedFinancials(dateParams),
+  ]);
+
+  const allTables = [...reportsToTables(data), ...advancedToTables(advanced)];
   const tables =
     section === "all" ? allTables : allTables.filter((t) => t.key === section);
   if (tables.length === 0) {

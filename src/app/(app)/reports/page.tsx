@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { Card } from "@/components/ui/Card";
-import { formatEgp } from "@/lib/money";
+import { formatEgp, formatCurrency } from "@/lib/money";
 import { getReportsData, type ReportsParams } from "@/lib/reports/data";
 import { getChartData } from "@/lib/reports/charts";
+import { getAdvancedFinancials } from "@/lib/reports/advanced";
 import { ReportsDateFilter } from "./ReportsDateFilter";
 import { ExportButtons } from "@/components/reports/ExportButtons";
 import { PrintHeader } from "@/components/reports/PrintHeader";
@@ -18,7 +19,11 @@ export default async function ReportsPage({
 }) {
   await requireUser();
   const sp = (await searchParams) as ReportsParams & SP;
-  const [d, chartData] = await Promise.all([getReportsData(sp), getChartData(sp)]);
+  const [d, chartData, adv] = await Promise.all([
+    getReportsData(sp),
+    getChartData(sp),
+    getAdvancedFinancials(sp),
+  ]);
 
   const sortLink = (
     sortKey: "csort" | "psort",
@@ -225,8 +230,156 @@ export default async function ReportsPage({
           </table>
         </div>
       </Section>
+
+      <h2 className="mt-2 text-sm font-semibold text-foreground-muted">
+        تقارير مالية متقدمة
+      </h2>
+
+      {/* 7. Receivables aging */}
+      <Section
+        title={`أعمار الديون — ${formatEgp(adv.aging.total)}`}
+        note="لقطة حالية. عمر الدين يُحتسب من تاريخ التسليم الفعلي، وإلا المتوقع، وإلا البدء، وإلا الإنشاء."
+        section="aging"
+      >
+        <SimpleTable
+          head={["الفئة", "عدد المشاريع", "الإجمالي"]}
+          rows={adv.aging.buckets.map((b) => [
+            b.label,
+            b.count,
+            formatEgp(b.total),
+          ])}
+        />
+        {adv.aging.rows.length > 0 && (
+          <div className="mt-4">
+            <h3 className="mb-2 text-sm text-foreground-muted">تفصيل المشاريع</h3>
+            <SimpleTable
+              head={["المشروع", "العميل", "المتبقي", "عمر الدين", "الفئة"]}
+              rows={adv.aging.rows.map((r) => [
+                r.projectName,
+                r.clientName,
+                formatEgp(r.remaining),
+                `${r.ageDays} يوم`,
+                r.bucket === "b0"
+                  ? "٠–٣٠"
+                  : r.bucket === "b30"
+                    ? "٣١–٦٠"
+                    : r.bucket === "b60"
+                      ? "٦١–٩٠"
+                      : "+٩٠",
+              ])}
+            />
+          </div>
+        )}
+        {adv.aging.rows.length === 0 && (
+          <p className="mt-3 text-sm text-foreground-muted">لا توجد مستحقات.</p>
+        )}
+      </Section>
+
+      {/* 8. Currency report */}
+      <Section
+        title="تقرير العملات"
+        note="المحصّل والمنصرف حسب العملة الأصلية (يتأثر بالفلتر الزمني)."
+        section="currency"
+      >
+        <SimpleTable
+          head={[
+            "العملة",
+            "محصّل (بالعملة)",
+            "محصّل (ج.م)",
+            "منصرف (بالعملة)",
+            "منصرف (ج.م)",
+            "الصافي (ج.م)",
+          ]}
+          rows={adv.currency.rows.map((r) => [
+            r.currency,
+            formatCurrency(r.receivedOriginal, r.currency),
+            formatEgp(r.receivedEgp),
+            formatCurrency(r.spentOriginal, r.currency),
+            formatEgp(r.spentEgp),
+            formatEgp(r.netEgp),
+          ])}
+          empty="لا توجد حركة مالية في هذه الفترة."
+        />
+      </Section>
+
+      {/* 9. Period comparison */}
+      <Section
+        title="مقارنة الفترات"
+        note="الشهر الحالي مقابل الشهر السابق ونفس الشهر من العام السابق (لا يتأثر بالفلتر)."
+        section="period-comparison"
+      >
+        <SimpleTable
+          head={[
+            "البند",
+            adv.comparison.current.label,
+            adv.comparison.previous.label,
+            adv.comparison.yearAgo.label,
+            "▲ عن الشهر السابق",
+            "▲ عن العام السابق",
+          ]}
+          rows={[
+            [
+              "الإيرادات",
+              formatEgp(adv.comparison.current.revenue),
+              formatEgp(adv.comparison.previous.revenue),
+              formatEgp(adv.comparison.yearAgo.revenue),
+              fmtPct(adv.comparison.mom.revenue),
+              fmtPct(adv.comparison.yoy.revenue),
+            ],
+            [
+              "المصروفات",
+              formatEgp(adv.comparison.current.expense),
+              formatEgp(adv.comparison.previous.expense),
+              formatEgp(adv.comparison.yearAgo.expense),
+              fmtPct(adv.comparison.mom.expense),
+              fmtPct(adv.comparison.yoy.expense),
+            ],
+            [
+              "الصافي",
+              formatEgp(adv.comparison.current.net),
+              formatEgp(adv.comparison.previous.net),
+              formatEgp(adv.comparison.yearAgo.net),
+              fmtPct(adv.comparison.mom.net),
+              fmtPct(adv.comparison.yoy.net),
+            ],
+          ]}
+        />
+      </Section>
+
+      {/* 10. Cash flow statement */}
+      <Section
+        title={`بيان التدفق النقدي — الرصيد ${formatEgp(adv.cashflow.closing)}`}
+        note="آخر ١٢ شهرًا. الرصيد التراكمي يشمل كل الحركة قبل الفترة (لا يتأثر بالفلتر)."
+        section="cashflow"
+      >
+        <SimpleTable
+          head={["الشهر", "داخل", "خارج", "الصافي", "الرصيد التراكمي"]}
+          rows={[
+            ["رصيد افتتاحي", "—", "—", "—", formatEgp(adv.cashflow.opening)],
+            ...adv.cashflow.rows.map((r) => [
+              r.month.slice(2).replace("-", "/"),
+              formatEgp(r.inflow),
+              formatEgp(r.outflow),
+              formatEgp(r.net),
+              formatEgp(r.balance),
+            ]),
+            [
+              "الإجمالي",
+              formatEgp(adv.cashflow.totalIn),
+              formatEgp(adv.cashflow.totalOut),
+              formatEgp(adv.cashflow.totalNet),
+              formatEgp(adv.cashflow.closing),
+            ],
+          ]}
+        />
+      </Section>
     </div>
   );
+}
+
+function fmtPct(v: number | null): string {
+  if (v === null) return "—";
+  return `${v >= 0 ? "▲ +" : "▼ "}${v.toFixed(1)}%`;
 }
 
 function Section({

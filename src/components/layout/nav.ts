@@ -9,6 +9,7 @@ export const NAV: NavItem[] = [
   { href: "/projects", label: "المشاريع" },
   { href: "/calendar", label: "التقويم" },
   { href: "/meetings", label: "الاجتماعات" },
+  { href: "/reminders", label: "التذكيرات" },
   { href: "/payments", label: "المدفوعات" },
   { href: "/expenses", label: "المصروفات" },
   { href: "/reports", label: "التقارير" },

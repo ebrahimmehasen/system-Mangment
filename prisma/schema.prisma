@@ -1,7 +1,10 @@
 // 404 Legends — Prisma schema
-// Phase 1: datasource + generator + minimal User model.
-// The full schema (clients, projects, transactions, payments, expenses,
-// project_files, audit_logs, settings, ...) is implemented in Phase 2 (نقطة 2).
+// Phase 2: full data model + RLS (نقطة 2).
+//
+// Money rules (نقطة 0):
+//  - every monetary column is Decimal(14,2)
+//  - exchange_rate_to_egp is Decimal(18,6) (rate, not an amount)
+//  - amount_egp is computed and frozen at insert time, never recomputed
 
 generator client {
   provider = "prisma-client-js"
@@ -13,8 +16,35 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-/// Application users. Auth itself is handled by Supabase Auth;
-/// this table mirrors the profile + role for app-level checks.
+// ─────────────────────────── Enums ───────────────────────────
+
+enum Currency {
+  EGP
+  USD
+  SAR
+}
+
+enum TransactionType {
+  income
+  expense
+  discount
+  refund
+  adjustment
+}
+
+enum ExpenseType {
+  project
+  company
+}
+
+enum ClientStatus {
+  active
+  inactive
+}
+
+// ─────────────────────────── Users ───────────────────────────
+
+/// Mirrors Supabase auth.users. `id` equals auth.uid().
 model User {
   id        String   @id @default(uuid()) @db.Uuid
   email     String   @unique
@@ -22,5 +52,239 @@ model User {
   role      String   @default("admin")
   createdAt DateTime @default(now()) @map("created_at")
 
+  clientsCreated  Client[]      @relation("ClientCreatedBy")
+  projectsCreated Project[]     @relation("ProjectCreatedBy")
+  filesUploaded   ProjectFile[] @relation("FileUploadedBy")
+  transactions    Transaction[] @relation("TransactionCreatedBy")
+  payments        Payment[]     @relation("PaymentCreatedBy")
+  expenses        Expense[]     @relation("ExpenseCreatedBy")
+  auditLogs       AuditLog[]
+
   @@map("users")
+}
+
+// ────────────────────────── Clients ──────────────────────────
+
+model Client {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String
+  companyName String?      @map("company_name")
+  phone       String?
+  email       String?
+  address     String?
+  notes       String?
+  status      ClientStatus @default(active)
+  createdBy   String?      @map("created_by") @db.Uuid
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  creator      User?         @relation("ClientCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  projects     Project[]
+  transactions Transaction[]
+  payments     Payment[]
+
+  @@index([status])
+  @@map("clients")
+}
+
+// ────────────────────────── Projects ─────────────────────────
+
+model Project {
+  id                   String    @id @default(uuid()) @db.Uuid
+  clientId             String    @map("client_id") @db.Uuid
+  name                 String
+  description          String?
+  status               String    @default("Planning")
+  startDate            DateTime? @map("start_date") @db.Date
+  expectedDeliveryDate DateTime? @map("expected_delivery_date") @db.Date
+  actualDeliveryDate   DateTime? @map("actual_delivery_date") @db.Date
+  contractValue        Decimal   @default(0) @map("contract_value") @db.Decimal(14, 2)
+  discount             Decimal   @default(0) @db.Decimal(14, 2)
+  notes                String?
+  createdBy            String?   @map("created_by") @db.Uuid
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  creator      User?         @relation("ProjectCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  files        ProjectFile[]
+  transactions Transaction[]
+  payments     Payment[]
+  expenses     Expense[]
+
+  @@index([clientId])
+  @@index([status])
+  @@map("projects")
+}
+
+// ─────────────────────── Project files ───────────────────────
+
+model ProjectFile {
+  id         String   @id @default(uuid()) @db.Uuid
+  projectId  String   @map("project_id") @db.Uuid
+  fileName   String   @map("file_name")
+  storageKey String   @map("storage_key")
+  fileType   String   @map("file_type")
+  fileSize   Int      @map("file_size")
+  uploadedBy String?  @map("uploaded_by") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploader User?   @relation("FileUploadedBy", fields: [uploadedBy], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@map("project_files")
+}
+
+// ─────────────────────── Transactions ────────────────────────
+
+/// Central ledger — every money movement creates one row here.
+model Transaction {
+  id                String          @id @default(uuid()) @db.Uuid
+  type              TransactionType
+  amountOriginal    Decimal         @map("amount_original") @db.Decimal(14, 2)
+  currency          Currency
+  exchangeRateToEgp Decimal         @map("exchange_rate_to_egp") @db.Decimal(18, 6)
+  amountEgp         Decimal         @map("amount_egp") @db.Decimal(14, 2)
+  date              DateTime        @db.Date
+  description       String?
+  clientId          String?         @map("client_id") @db.Uuid
+  projectId         String?         @map("project_id") @db.Uuid
+  category          String?
+  paymentMethod     String?         @map("payment_method")
+  notes             String?
+  createdBy         String?         @map("created_by") @db.Uuid
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  client  Client?  @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  creator User?    @relation("TransactionCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  payment Payment?
+  expense Expense?
+
+  @@index([projectId])
+  @@index([clientId])
+  @@index([type])
+  @@index([date])
+  @@map("transactions")
+}
+
+// ───────────────────────── Payments ──────────────────────────
+
+model Payment {
+  id                String   @id @default(uuid()) @db.Uuid
+  projectId         String   @map("project_id") @db.Uuid
+  clientId          String   @map("client_id") @db.Uuid
+  transactionId     String   @unique @map("transaction_id") @db.Uuid
+  amountOriginal    Decimal  @map("amount_original") @db.Decimal(14, 2)
+  currency          Currency
+  exchangeRateToEgp Decimal  @map("exchange_rate_to_egp") @db.Decimal(18, 6)
+  amountEgp         Decimal  @map("amount_egp") @db.Decimal(14, 2)
+  method            String?
+  date              DateTime @db.Date
+  referenceNumber   String?  @map("reference_number")
+  notes             String?
+  createdBy         String?  @map("created_by") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  client      Client      @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  creator     User?       @relation("PaymentCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([clientId])
+  @@map("payments")
+}
+
+// ───────────────────────── Expenses ──────────────────────────
+
+model Expense {
+  id                String      @id @default(uuid()) @db.Uuid
+  type              ExpenseType
+  projectId         String?     @map("project_id") @db.Uuid
+  categoryId        String      @map("category_id") @db.Uuid
+  transactionId     String      @unique @map("transaction_id") @db.Uuid
+  amountOriginal    Decimal     @map("amount_original") @db.Decimal(14, 2)
+  currency          Currency
+  exchangeRateToEgp Decimal     @map("exchange_rate_to_egp") @db.Decimal(18, 6)
+  amountEgp         Decimal     @map("amount_egp") @db.Decimal(14, 2)
+  date              DateTime    @db.Date
+  description       String?
+  paymentMethod     String?     @map("payment_method")
+  notes             String?
+  createdBy         String?     @map("created_by") @db.Uuid
+  createdAt         DateTime    @default(now()) @map("created_at")
+
+  project     Project?        @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  transaction Transaction     @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  creator     User?           @relation("ExpenseCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([categoryId])
+  @@index([type])
+  @@map("expenses")
+}
+
+// ─────────────────── Reference / lookup tables ───────────────
+
+model ExpenseCategory {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String    @unique
+  isDefault Boolean   @default(false) @map("is_default")
+  createdAt DateTime  @default(now()) @map("created_at")
+  expenses  Expense[]
+
+  @@map("expense_categories")
+}
+
+model ProjectStatus {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  sortOrder Int      @map("sort_order")
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("project_statuses")
+}
+
+model PaymentMethod {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  sortOrder Int      @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("payment_methods")
+}
+
+// ───────────────────────── Audit log ────────────────────────
+
+/// Append-only. Never deleted from the UI.
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  oldValue  Json?    @map("old_value")
+  newValue  Json?    @map("new_value")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ───────────────────────── Settings ─────────────────────────
+
+model Setting {
+  id    String @id @default(uuid()) @db.Uuid
+  key   String @unique
+  value String
+
+  @@map("settings")
 }

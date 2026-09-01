@@ -77,7 +77,15 @@ export default async function ClientProfilePage({
           <ClientFormModal
             mode="edit"
             action={updateAction}
-            client={client}
+            client={{
+              name: client.name,
+              companyName: client.companyName,
+              phone: client.phone,
+              email: client.email,
+              address: client.address,
+              notes: client.notes,
+              status: client.status,
+            }}
             triggerLabel="تعديل"
             triggerVariant="secondary"
           />

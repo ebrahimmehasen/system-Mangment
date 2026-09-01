@@ -16,6 +16,7 @@ const NAV: NavItem[] = [
   { href: "/projects", label: "المشاريع" },
   { href: "/payments", label: "المدفوعات" },
   { href: "/expenses", label: "المصروفات" },
+  { href: "/audit-logs", label: "سجل التدقيق" },
   { href: "/team", label: "المشرفون" },
 ];
 

@@ -149,6 +149,27 @@ const styles = StyleSheet.create({
     color: MUTED,
   },
   footerContact: { fontFamily: "Helvetica", fontSize: 7.5, color: MUTED, letterSpacing: 0.3 },
+
+  /* employee report blocks */
+  infoGrid: { flexDirection: "row-reverse", flexWrap: "wrap", marginBottom: 10 },
+  infoItem: { width: "33.33%", marginBottom: 6, paddingLeft: 8 },
+  infoLabel: { fontSize: 7.5, color: MUTED },
+  infoValue: { fontSize: 10, color: INK, marginTop: 1 },
+  summaryRow: {
+    flexDirection: "row-reverse",
+    gap: 8,
+    marginBottom: 6,
+  },
+  summaryBox: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: LINE,
+    borderRadius: 3,
+    padding: 8,
+    backgroundColor: ZEBRA,
+  },
+  summaryLabel: { fontSize: 7.5, color: MUTED },
+  summaryValue: { fontSize: 12, fontWeight: "bold", color: INK, marginTop: 2 },
 });
 
 function Header({ meta, stamp }: { meta: PdfMeta; stamp: string }) {
@@ -261,4 +282,74 @@ export async function buildReportsPdf(
 ): Promise<Buffer> {
   ensureFonts();
   return renderToBuffer(<ReportsDocument meta={meta} tables={tables} />);
+}
+
+// ─────────────────────── Employee report (نقطة 4.11) ───────────────────────
+
+export interface EmployeePdfInput {
+  name: string;
+  generatedAt: Date;
+  info: { label: string; value: string }[];
+  summary: { label: string; value: string }[];
+  tables: ReportTable[];
+}
+
+function EmployeeDocument({ input }: { input: EmployeePdfInput }) {
+  const d = input.generatedAt;
+  const p2 = (n: number) => String(n).padStart(2, "0");
+  const stamp = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+  const title = `تقرير الموظف — ${input.name}`;
+  const meta: PdfMeta = { docTitle: title, period: "—", generatedAt: d };
+
+  return (
+    <Document title={title} author="404 LAGEND" creator="404 LAGEND" producer="404 LAGEND">
+      <Page size="A4" style={styles.page}>
+        {/* eslint-disable-next-line jsx-a11y/alt-text */}
+        <Image src={WATERMARK} style={styles.watermark} fixed />
+        <Header meta={meta} stamp={stamp} />
+
+        <View style={styles.titleBlock}>
+          <Text style={styles.docTitle}>{title}</Text>
+          <Text style={styles.docSub}>تاريخ التصدير: {stamp}</Text>
+        </View>
+
+        <View style={styles.infoGrid}>
+          {input.info.map((it, i) => (
+            <View key={i} style={styles.infoItem}>
+              <Text style={styles.infoLabel}>{it.label}</Text>
+              <Text style={styles.infoValue}>{it.value || "—"}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.summaryRow}>
+          {input.summary.map((s, i) => (
+            <View key={i} style={styles.summaryBox}>
+              <Text style={styles.summaryLabel}>{s.label}</Text>
+              <Text style={styles.summaryValue}>{s.value}</Text>
+            </View>
+          ))}
+        </View>
+
+        {input.tables.map((t) => (
+          <Table key={t.key} table={t} />
+        ))}
+
+        <View style={styles.footer} fixed>
+          <Text style={styles.footerContact}>
+            +201150386690  ·  404legend.space  ·  info@404legend.space
+          </Text>
+          <Text
+            render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}
+          />
+        </View>
+      </Page>
+    </Document>
+  );
+}
+
+/** Branded PDF of one employee's payroll — info, totals, per-project + full list. */
+export async function buildEmployeePdf(input: EmployeePdfInput): Promise<Buffer> {
+  ensureFonts();
+  return renderToBuffer(<EmployeeDocument input={input} />);
 }

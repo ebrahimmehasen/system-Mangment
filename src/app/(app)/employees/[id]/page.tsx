@@ -80,7 +80,13 @@ export default async function EmployeeProfilePage({
             </p>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={`/api/export/employees/${employee.id}`}
+            className="inline-flex items-center justify-center rounded-md border border-border bg-surface-2 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-surface"
+          >
+            تصدير تقرير PDF
+          </a>
           <EmployeeFormModal
             mode="edit"
             action={updateAction}

@@ -19,6 +19,7 @@ import { MeetingsTable } from "@/components/calendar/MeetingsTable";
 import { MeetingFormModal } from "@/components/calendar/MeetingFormModal";
 import { createMeetingAction } from "@/server/meeting-actions";
 import { MilestonesTimeline } from "@/components/timeline/MilestonesTimeline";
+import { ProjectTeamSection } from "@/components/team/ProjectTeamSection";
 
 const toDateInput = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
 
@@ -30,7 +31,7 @@ export default async function ProjectDetailsPage({
   await requireUser();
   const { id } = await params;
 
-  const [project, clients, statusRows, categories, methodRows] = await Promise.all([
+  const [project, clients, statusRows, categories, methodRows, employees, users] = await Promise.all([
     prisma.project.findUnique({
       where: { id },
       include: {
@@ -53,6 +54,13 @@ export default async function ProjectDetailsPage({
           },
         },
         milestones: { orderBy: { sortOrder: "asc" } },
+        assignments: {
+          orderBy: { assignedAt: "asc" },
+          include: {
+            employee: { select: { name: true } },
+            user: { select: { name: true, email: true } },
+          },
+        },
         _count: { select: { payments: true, expenses: true, files: true } },
       },
     }),
@@ -60,6 +68,15 @@ export default async function ProjectDetailsPage({
     prisma.projectStatus.findMany({ orderBy: { sortOrder: "asc" }, select: { name: true } }),
     prisma.expenseCategory.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.paymentMethod.findMany({ orderBy: { sortOrder: "asc" }, select: { name: true } }),
+    prisma.employee.findMany({
+      where: { status: "active" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.user.findMany({
+      orderBy: { createdAt: "asc" },
+      select: { id: true, name: true, email: true },
+    }),
   ]);
 
   if (!project) notFound();
@@ -166,6 +183,20 @@ export default async function ProjectDetailsPage({
           {project.description || "لا يوجد وصف."}
         </p>
       </Card>
+
+      {/* Team */}
+      <ProjectTeamSection
+        projectId={project.id}
+        assignments={project.assignments.map((a) => ({
+          id: a.id,
+          role: a.role,
+          name:
+            a.employee?.name ?? a.user?.name ?? a.user?.email ?? "—",
+          assignedAt: a.assignedAt.toISOString(),
+        }))}
+        employeeOptions={employees}
+        userOptions={users.map((u) => ({ id: u.id, name: u.name || u.email }))}
+      />
 
       {/* Timeline / milestones */}
       <MilestonesTimeline projectId={project.id} milestones={project.milestones} />

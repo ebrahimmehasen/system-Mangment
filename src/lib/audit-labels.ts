@@ -23,6 +23,7 @@ export const AUDIT_ENTITIES: Record<string, string> = {
   reminder: "تذكير",
   employee: "موظف",
   employee_cv: "سيرة ذاتية",
+  project_assignment: "تعيين على مشروع",
 };
 
 export const actionLabel = (a: string) => AUDIT_ACTIONS[a] ?? a;

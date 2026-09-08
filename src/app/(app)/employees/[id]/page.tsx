@@ -20,7 +20,22 @@ export default async function EmployeeProfilePage({
 
   const employee = await prisma.employee.findUnique({
     where: { id },
-    include: { _count: { select: { assignments: true, payments: true } } },
+    include: {
+      _count: { select: { payments: true } },
+      assignments: {
+        orderBy: { assignedAt: "desc" },
+        include: {
+          project: {
+            select: {
+              id: true,
+              name: true,
+              status: true,
+              client: { select: { name: true } },
+            },
+          },
+        },
+      },
+    },
   });
   if (!employee) notFound();
 
@@ -85,10 +100,69 @@ export default async function EmployeeProfilePage({
           <Info label="الدولة" value={employee.country} />
           <Info label="المحافظة" value={employee.governorate} />
           <Info label="الهاتف" value={employee.phone} ltr />
-          <Info label="عدد المشاريع المعيّن عليها" value={String(employee._count.assignments)} />
           <Info label="أُضيف في" value={dateFmt.format(employee.createdAt)} />
           <Info label="ملاحظات" value={employee.notes} />
         </dl>
+      </Card>
+
+      {/* Assigned projects */}
+      <Card className="p-0">
+        <div className="border-b border-border p-4">
+          <h2 className="text-base font-semibold">
+            المشاريع المعيّن عليها ({employee.assignments.length})
+          </h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-right text-foreground-muted">
+                <th className="px-4 py-3 font-medium">المشروع</th>
+                <th className="px-4 py-3 font-medium">العميل</th>
+                <th className="px-4 py-3 font-medium">الدور</th>
+                <th className="px-4 py-3 font-medium">الحالة</th>
+                <th className="px-4 py-3 font-medium">تاريخ التعيين</th>
+              </tr>
+            </thead>
+            <tbody>
+              {employee.assignments.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-4 py-8 text-center text-foreground-muted"
+                  >
+                    غير معيّن على أي مشروع.
+                  </td>
+                </tr>
+              )}
+              {employee.assignments.map((a) => (
+                <tr key={a.id} className="border-b border-border last:border-0">
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/projects/${a.project.id}`}
+                      className="text-accent hover:underline"
+                    >
+                      {a.project.name}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-foreground-muted">
+                    {a.project.client.name}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge tone={a.role === "supervisor" ? "accent" : "neutral"}>
+                      {a.role === "supervisor" ? "مشرف" : "موظف"}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-foreground-muted">
+                    {a.project.status}
+                  </td>
+                  <td className="px-4 py-3 text-foreground-muted">
+                    {dateFmt.format(a.assignedAt)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Card>
 
       {/* Rating */}

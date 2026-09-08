@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
 
   if (format === "csv") {
     const csv = buildCsv(tables[0], [
-      "404 Legends",
+      "404 LAGEND",
       tables[0].title,
       `الفترة: ${period}`,
     ]);
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
 
   if (format === "pdf") {
     const pdf = await buildReportsPdf(
-      { docTitle: "تقارير 404 Legends", period, generatedAt: new Date() },
+      { docTitle: "تقارير الشركة", period, generatedAt: new Date() },
       tables,
     );
     return new NextResponse(new Uint8Array(pdf), {
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
   }
 
   const buffer = await buildWorkbook(
-    { docTitle: "تقارير 404 Legends", period, generatedAt: new Date() },
+    { docTitle: "تقارير الشركة", period, generatedAt: new Date() },
     tables,
   );
   return new NextResponse(new Uint8Array(buffer), {

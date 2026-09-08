@@ -43,7 +43,7 @@ export function MobileNav() {
               <div className="flex items-center gap-2">
                 <Logo size={28} />
                 <span dir="ltr" className="text-sm font-semibold">
-                  404 Legends
+                  404 LAGEND
                 </span>
               </div>
               <button

@@ -11,7 +11,7 @@ export function PrintHeader({
 }) {
   return (
     <div className="print-only mb-4 border-b border-black pb-2">
-      <div className="text-lg font-bold">404 Legends</div>
+      <div className="text-lg font-bold">404 LAGEND</div>
       <div className="text-base">{title}</div>
       {subtitle && <div className="text-sm">{subtitle}</div>}
       <div className="text-xs">

@@ -27,7 +27,7 @@ export default function LoginPage() {
             <Logo size={52} />
           </div>
           <h1 dir="ltr" className="text-xl font-semibold tracking-tight">
-            404 Legends
+            404 LAGEND
           </h1>
           <p dir="ltr" className="mt-1 text-sm text-foreground-muted">
             Where 404 Becomes Legend

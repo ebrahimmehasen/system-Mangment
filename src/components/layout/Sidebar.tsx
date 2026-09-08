@@ -17,7 +17,7 @@ export function Sidebar() {
       >
         <Logo size={26} />
         <span dir="ltr" className="text-sm font-semibold tracking-tight">
-          404 Legends
+          404 LAGEND
         </span>
       </Link>
 

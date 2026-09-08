@@ -9,10 +9,10 @@ const sansArabic = IBM_Plex_Sans_Arabic({
 });
 
 export const metadata: Metadata = {
-  title: "404 Legends — نظام الإدارة الداخلي",
+  title: "404 LAGEND — نظام الإدارة الداخلي",
   description: "نظام إدارة داخلي لإدارة العملاء والمشاريع والمدفوعات والمصروفات.",
-  applicationName: "404 Legends",
-  appleWebApp: { capable: true, title: "404 Legends", statusBarStyle: "black-translucent" },
+  applicationName: "404 LAGEND",
+  appleWebApp: { capable: true, title: "404 LAGEND", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {

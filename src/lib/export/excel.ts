@@ -15,7 +15,7 @@ export async function buildWorkbook(
   tables: ReportTable[],
 ): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "404 Legends";
+  wb.creator = "404 LAGEND";
   wb.created = meta.generatedAt;
 
   const dateFmt = new Intl.DateTimeFormat("ar-EG", {
@@ -30,7 +30,7 @@ export async function buildWorkbook(
       views: [{ rightToLeft: true }],
     });
 
-    ws.addRow(["404 Legends"]).font = { bold: true, size: 14 };
+    ws.addRow(["404 LAGEND"]).font = { bold: true, size: 14 };
     ws.addRow([table.title]).font = { bold: true, size: 12 };
     ws.addRow([`الفترة: ${meta.period}`]);
     ws.addRow([`تاريخ التوليد: ${dateFmt.format(meta.generatedAt)}`]);

@@ -93,21 +93,13 @@ const styles = StyleSheet.create({
   },
   brandRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8 },
   brandMark: { width: 30, height: 30 },
-  brandText: { alignItems: "flex-end" },
   brandName: {
     fontFamily: "Helvetica-Bold",
-    fontSize: 15,
+    fontSize: 16,
     letterSpacing: 1.5,
     color: INK,
   },
   brandNameBlue: { color: BRAND },
-  brandTag: {
-    fontFamily: "Helvetica",
-    fontSize: 6,
-    letterSpacing: 2,
-    color: MUTED,
-    marginTop: 2,
-  },
   headerMeta: { alignItems: "flex-start" },
   headerMetaLine: { fontSize: 8, color: MUTED },
 
@@ -148,13 +140,15 @@ const styles = StyleSheet.create({
     left: 40,
     right: 40,
     flexDirection: "row-reverse",
+    alignItems: "center",
     justifyContent: "space-between",
-    borderTopWidth: 1,
-    borderTopColor: LINE,
+    borderTopWidth: 1.5,
+    borderTopColor: BRAND,
     paddingTop: 6,
     fontSize: 7,
     color: MUTED,
   },
+  footerContact: { fontFamily: "Helvetica", fontSize: 7.5, color: MUTED, letterSpacing: 0.3 },
 });
 
 function Header({ meta, stamp }: { meta: PdfMeta; stamp: string }) {
@@ -163,12 +157,9 @@ function Header({ meta, stamp }: { meta: PdfMeta; stamp: string }) {
       <View style={styles.brandRow}>
         {/* eslint-disable-next-line jsx-a11y/alt-text */}
         <Image src={MARK} style={styles.brandMark} />
-        <View style={styles.brandText}>
-          <Text style={styles.brandName}>
-            404 <Text style={styles.brandNameBlue}>LEGENDS</Text>
-          </Text>
-          <Text style={styles.brandTag}>PREMIUM SOFTWARE SOLUTIONS</Text>
-        </View>
+        <Text style={styles.brandName}>
+          404 <Text style={styles.brandNameBlue}>LAGEND</Text>
+        </Text>
       </View>
       <View style={styles.headerMeta}>
         <Text style={styles.headerMetaLine}>{meta.docTitle}</Text>
@@ -229,9 +220,9 @@ function ReportsDocument({ meta, tables }: { meta: PdfMeta; tables: ReportTable[
   return (
     <Document
       title={meta.docTitle}
-      author="404 Legends"
-      creator="404 Legends"
-      producer="404 Legends"
+      author="404 LAGEND"
+      creator="404 LAGEND"
+      producer="404 LAGEND"
     >
       <Page size="A4" style={styles.page}>
         {/* eslint-disable-next-line jsx-a11y/alt-text */}
@@ -249,7 +240,9 @@ function ReportsDocument({ meta, tables }: { meta: PdfMeta; tables: ReportTable[
         ))}
 
         <View style={styles.footer} fixed>
-          <Text>404 Legends — Where 404 Becomes Legend</Text>
+          <Text style={styles.footerContact}>
+            +201150386690  ·  404legend.space  ·  info@404legend.space
+          </Text>
           <Text
             render={({ pageNumber, totalPages }) =>
               `${pageNumber} / ${totalPages}`

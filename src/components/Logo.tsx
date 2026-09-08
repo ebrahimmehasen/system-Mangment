@@ -19,7 +19,7 @@ export function Logo({
     return (
       <Image
         src="/brand/lockup-dark.png"
-        alt="404 Legends"
+        alt="404 LAGEND"
         width={Math.round(size * 3.4)}
         height={size}
         priority
@@ -31,7 +31,7 @@ export function Logo({
   return (
     <Image
       src="/brand/mark-512.png"
-      alt="404 Legends"
+      alt="404 LAGEND"
       width={size}
       height={size}
       priority

@@ -8,6 +8,7 @@ import { updateEmployeeAction } from "@/server/employee-actions";
 import { EmployeeFormModal } from "../EmployeeFormModal";
 import { DeleteEmployeeButton } from "./DeleteEmployeeButton";
 import { CvSection } from "./CvSection";
+import { RatingControl } from "./RatingControl";
 
 export default async function EmployeeProfilePage({
   params,
@@ -88,6 +89,15 @@ export default async function EmployeeProfilePage({
           <Info label="أُضيف في" value={dateFmt.format(employee.createdAt)} />
           <Info label="ملاحظات" value={employee.notes} />
         </dl>
+      </Card>
+
+      {/* Rating */}
+      <Card>
+        <h2 className="mb-1 text-base font-semibold">التقييم</h2>
+        <p className="mb-4 text-xs text-foreground-muted">
+          تقييم يدوي من 1 إلى 10 يحدّده المشرف.
+        </p>
+        <RatingControl employeeId={employee.id} rating={employee.rating ?? 0} />
       </Card>
 
       {/* CV */}

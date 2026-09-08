@@ -86,6 +86,7 @@ export default async function EmployeesPage({
                 <th className="px-4 py-3 font-medium">الدولة</th>
                 <th className="px-4 py-3 font-medium">المحافظة</th>
                 <th className="px-4 py-3 font-medium">الهاتف</th>
+                <th className="px-4 py-3 font-medium">التقييم</th>
                 <th className="px-4 py-3 font-medium">المشاريع</th>
                 <th className="px-4 py-3 font-medium">الحالة</th>
               </tr>
@@ -94,7 +95,7 @@ export default async function EmployeesPage({
               {employees.length === 0 && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-4 py-12 text-center text-foreground-muted"
                   >
                     {q || status
@@ -130,6 +131,9 @@ export default async function EmployeesPage({
                     className="px-4 py-3 text-right text-foreground-muted"
                   >
                     {e.phone || "—"}
+                  </td>
+                  <td className="px-4 py-3 text-foreground-muted">
+                    {e.rating && e.rating > 0 ? `${e.rating} / 10` : "—"}
                   </td>
                   <td className="px-4 py-3 text-foreground-muted">
                     {e._count.assignments}

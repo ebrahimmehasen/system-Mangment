@@ -334,3 +334,45 @@ export async function deleteEmployeeAction(
   revalidatePath("/employees");
   redirect("/employees");
 }
+
+/**
+ * Set an employee's manual rating. 1–10, or 0 to clear it (unrated).
+ */
+export async function setEmployeeRatingAction(
+  employeeId: string,
+  rating: number,
+): Promise<{ error?: string }> {
+  const user = await requireUser();
+
+  if (!Number.isInteger(rating) || rating < 0 || rating > 10) {
+    return { error: "التقييم يجب أن يكون رقمًا من 0 إلى 10." };
+  }
+
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: { rating: true },
+  });
+  if (!employee) return { error: "الموظف غير موجود." };
+  if ((employee.rating ?? 0) === rating) return {};
+
+  await prisma.$transaction(async (tx) => {
+    await tx.employee.update({
+      where: { id: employeeId },
+      data: { rating },
+    });
+    await writeAuditLog(
+      {
+        userId: user.id,
+        action: "updated",
+        entity: "employee",
+        entityId: employeeId,
+        oldValue: { rating: employee.rating ?? 0 },
+        newValue: { rating },
+      },
+      tx,
+    );
+  });
+
+  revalidatePath(`/employees/${employeeId}`);
+  return {};
+}

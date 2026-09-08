@@ -44,6 +44,7 @@ export default async function RemindersPage({
         client: { select: { id: true, name: true } },
         project: { select: { id: true, name: true } },
         meeting: { select: { id: true, title: true } },
+        creator: { select: { name: true, email: true } },
       },
     }),
     prisma.client.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
@@ -99,13 +100,14 @@ export default async function RemindersPage({
                 <th className="px-4 py-3 font-medium">الموعد</th>
                 <th className="px-4 py-3 font-medium">العنوان</th>
                 <th className="px-4 py-3 font-medium">مرتبط بـ</th>
+                <th className="px-4 py-3 font-medium">أنشأه</th>
                 <th className="px-4 py-3 font-medium">إجراءات</th>
               </tr>
             </thead>
             <tbody>
               {reminders.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-foreground-muted">
+                  <td colSpan={6} className="px-4 py-10 text-center text-foreground-muted">
                     {tab === "done"
                       ? "لا توجد تذكيرات منتهية."
                       : tab === "overdue"
@@ -142,6 +144,9 @@ export default async function RemindersPage({
                     ) : (
                       "—"
                     )}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-foreground-muted">
+                    {r.creator?.name || r.creator?.email || "—"}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">

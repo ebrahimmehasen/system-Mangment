@@ -4,11 +4,17 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { formatEgp, formatOriginalWithEgp } from "@/lib/money";
+import { computeEmployeePayrollSummary, PAY_TYPE_LABELS } from "@/lib/services/payroll";
 import { updateEmployeeAction } from "@/server/employee-actions";
 import { EmployeeFormModal } from "../EmployeeFormModal";
 import { DeleteEmployeeButton } from "./DeleteEmployeeButton";
 import { CvSection } from "./CvSection";
 import { RatingControl } from "./RatingControl";
+import { EmployeePaymentModal } from "./EmployeePaymentModal";
+import { DeletePaymentButton } from "./DeletePaymentButton";
+
+type PayType = keyof typeof PAY_TYPE_LABELS;
 
 export default async function EmployeeProfilePage({
   params,
@@ -18,29 +24,41 @@ export default async function EmployeeProfilePage({
   await requireUser();
   const { id } = await params;
 
-  const employee = await prisma.employee.findUnique({
-    where: { id },
-    include: {
-      _count: { select: { payments: true } },
-      assignments: {
-        orderBy: { assignedAt: "desc" },
-        include: {
-          project: {
-            select: {
-              id: true,
-              name: true,
-              status: true,
-              client: { select: { name: true } },
+  const [employee, projects] = await Promise.all([
+    prisma.employee.findUnique({
+      where: { id },
+      include: {
+        assignments: {
+          orderBy: { assignedAt: "desc" },
+          include: {
+            project: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                client: { select: { name: true } },
+              },
             },
           },
         },
+        payments: {
+          orderBy: { date: "desc" },
+          include: {
+            project: { select: { name: true, client: { select: { name: true } } } },
+          },
+        },
       },
-    },
-  });
+    }),
+    prisma.project.findMany({
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
   if (!employee) notFound();
 
   const dateFmt = new Intl.DateTimeFormat("ar-EG", { dateStyle: "medium" });
   const updateAction = updateEmployeeAction.bind(null, employee.id);
+  const payroll = computeEmployeePayrollSummary(employee.payments);
 
   return (
     <div className="flex flex-col gap-6">
@@ -157,6 +175,110 @@ export default async function EmployeeProfilePage({
                   </td>
                   <td className="px-4 py-3 text-foreground-muted">
                     {dateFmt.format(a.assignedAt)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* Payments */}
+      <Card className="p-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border p-4">
+          <h2 className="text-base font-semibold">
+            المدفوعات ({employee.payments.length})
+          </h2>
+          <EmployeePaymentModal employeeId={employee.id} projects={projects} />
+        </div>
+
+        <div className="grid gap-3 p-4 sm:grid-cols-3">
+          <div className="rounded-md border border-border bg-surface-2 p-3">
+            <dt className="text-xs text-foreground-muted">إجمالي المصروف (عمولة + راتب + مكافأة)</dt>
+            <dd className="mt-1 font-semibold text-success">
+              {formatEgp(payroll.disbursed)}
+            </dd>
+          </div>
+          <div className="rounded-md border border-border bg-surface-2 p-3">
+            <dt className="text-xs text-foreground-muted">إجمالي الخصومات</dt>
+            <dd className="mt-1 font-semibold text-danger">
+              {formatEgp(payroll.deducted)}
+            </dd>
+          </div>
+          <div className="rounded-md border border-border bg-surface-2 p-3">
+            <dt className="text-xs text-foreground-muted">الصافي المستلَم</dt>
+            <dd className="mt-1 font-semibold">{formatEgp(payroll.net)}</dd>
+          </div>
+        </div>
+
+        {payroll.byProject.length > 0 && (
+          <div className="overflow-x-auto px-4 pb-4">
+            <p className="mb-2 text-xs text-foreground-muted">حسب المشروع:</p>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-right text-foreground-muted">
+                  <th className="px-3 py-2 font-medium">المشروع</th>
+                  <th className="px-3 py-2 font-medium">مصروف</th>
+                  <th className="px-3 py-2 font-medium">مخصوم</th>
+                  <th className="px-3 py-2 font-medium">الصافي</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payroll.byProject.map((r) => (
+                  <tr key={r.projectId} className="border-b border-border last:border-0">
+                    <td className="px-3 py-2">{r.projectName}</td>
+                    <td className="px-3 py-2 text-foreground-muted">{formatEgp(r.disbursed)}</td>
+                    <td className="px-3 py-2 text-foreground-muted">{formatEgp(r.deducted)}</td>
+                    <td className="px-3 py-2">{formatEgp(r.net)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="overflow-x-auto border-t border-border">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-right text-foreground-muted">
+                <th className="px-4 py-3 font-medium">التاريخ</th>
+                <th className="px-4 py-3 font-medium">النوع</th>
+                <th className="px-4 py-3 font-medium">المشروع</th>
+                <th className="px-4 py-3 font-medium">المبلغ</th>
+                <th className="px-4 py-3 font-medium">ملاحظات</th>
+                <th className="px-4 py-3 font-medium" />
+              </tr>
+            </thead>
+            <tbody>
+              {employee.payments.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-foreground-muted">
+                    لا توجد مدفوعات بعد.
+                  </td>
+                </tr>
+              )}
+              {employee.payments.map((p) => (
+                <tr key={p.id} className="border-b border-border last:border-0">
+                  <td className="px-4 py-3 text-foreground-muted">
+                    {dateFmt.format(p.date)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge tone={p.payType === "deduction" ? "danger" : "success"}>
+                      {PAY_TYPE_LABELS[p.payType as PayType]}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-foreground-muted">
+                    {p.project.name}
+                  </td>
+                  <td className="px-4 py-3">
+                    {formatOriginalWithEgp(p.amountOriginal, p.currency, p.amountEgp)}
+                  </td>
+                  <td className="px-4 py-3 text-foreground-muted">{p.notes || "—"}</td>
+                  <td className="px-4 py-3">
+                    <DeletePaymentButton
+                      paymentId={p.id}
+                      label={`${PAY_TYPE_LABELS[p.payType as PayType]} ${formatEgp(p.amountEgp)}`}
+                    />
                   </td>
                 </tr>
               ))}

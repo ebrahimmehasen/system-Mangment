@@ -25,6 +25,7 @@ export const AUDIT_ENTITIES: Record<string, string> = {
   employee_cv: "سيرة ذاتية",
   project_assignment: "تعيين على مشروع",
   company_account: "حساب الشركة",
+  employee_payment: "دفعة موظف",
 };
 
 export const actionLabel = (a: string) => AUDIT_ACTIONS[a] ?? a;

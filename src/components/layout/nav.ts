@@ -14,6 +14,7 @@ export const NAV: NavItem[] = [
   { href: "/notifications", label: "التنبيهات" },
   { href: "/payments", label: "المدفوعات" },
   { href: "/expenses", label: "المصروفات" },
+  { href: "/company-account", label: "حساب الشركة" },
   { href: "/reports", label: "التقارير" },
   { href: "/audit-logs", label: "سجل التدقيق" },
   { href: "/team", label: "المشرفون" },

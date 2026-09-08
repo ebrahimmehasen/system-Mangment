@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/Card";
 import { AddAdminForm } from "./AddAdminForm";
+import { ChangePasswordForm } from "./ChangePasswordForm";
 
 export default async function TeamPage() {
   const me = await requireUser();
@@ -55,6 +56,14 @@ export default async function TeamPage() {
       <Card>
         <h2 className="mb-4 text-base font-semibold">إضافة مشرف جديد</h2>
         <AddAdminForm />
+      </Card>
+
+      <Card>
+        <h2 className="mb-1 text-base font-semibold">تغيير كلمة المرور</h2>
+        <p className="mb-4 text-sm text-foreground-muted">
+          غيّر كلمة مرور حسابك ({me.email}).
+        </p>
+        <ChangePasswordForm />
       </Card>
     </div>
   );

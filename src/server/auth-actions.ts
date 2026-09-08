@@ -35,6 +35,48 @@ export async function signInAction(
   redirect("/dashboard");
 }
 
+export async function changePasswordAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const me = await requireUser();
+
+  const currentPassword = String(formData.get("currentPassword") ?? "");
+  const newPassword = String(formData.get("newPassword") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+
+  if (!currentPassword || !newPassword) {
+    return { error: "أدخل كلمة المرور الحالية والجديدة." };
+  }
+  if (newPassword.length < 8) {
+    return { error: "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل." };
+  }
+  if (newPassword !== confirmPassword) {
+    return { error: "كلمة المرور الجديدة وتأكيدها غير متطابقين." };
+  }
+  if (newPassword === currentPassword) {
+    return { error: "كلمة المرور الجديدة مطابقة للحالية." };
+  }
+
+  const supabase = await createClient();
+
+  // Verify the current password before allowing the change.
+  const { error: verifyError } = await supabase.auth.signInWithPassword({
+    email: me.email,
+    password: currentPassword,
+  });
+  if (verifyError) {
+    return { error: "كلمة المرور الحالية غير صحيحة." };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) {
+    return { error: `تعذّر تغيير كلمة المرور: ${error.message}` };
+  }
+
+  return { success: "تم تغيير كلمة المرور بنجاح." };
+}
+
 export async function signOutAction() {
   const supabase = await createClient();
   await supabase.auth.signOut();

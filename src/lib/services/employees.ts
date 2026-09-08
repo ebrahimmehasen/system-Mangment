@@ -1,3 +1,26 @@
+import type { Prisma } from "@prisma/client";
+
+/** Shared list filter for the /employees page and its Excel export. */
+export function employeeListWhere(
+  q: string,
+  status: "active" | "inactive" | undefined,
+): Prisma.EmployeeWhereInput {
+  const term = q.trim();
+  return {
+    ...(status ? { status } : {}),
+    ...(term
+      ? {
+          OR: [
+            { name: { contains: term, mode: "insensitive" } },
+            { qualification: { contains: term, mode: "insensitive" } },
+            { phone: { contains: term, mode: "insensitive" } },
+            { governorate: { contains: term, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
+}
+
 export interface EmployeeFormValues {
   name: string;
   age: string;

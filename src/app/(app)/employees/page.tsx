@@ -1,13 +1,14 @@
 import Link from "next/link";
-import type { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Pagination } from "@/components/ui/Pagination";
+import { employeeListWhere } from "@/lib/services/employees";
 import { createEmployeeAction } from "@/server/employee-actions";
 import { EmployeeFormModal } from "./EmployeeFormModal";
 import { EmployeesToolbar } from "./EmployeesToolbar";
+import { ExportEmployeesButton } from "@/components/employees/ExportEmployeesButton";
 
 const PAGE_SIZE = 10;
 
@@ -24,19 +25,7 @@ export default async function EmployeesPage({
     sp.status === "active" || sp.status === "inactive" ? sp.status : undefined;
   const page = Math.max(1, Number(sp.page) || 1);
 
-  const where: Prisma.EmployeeWhereInput = {
-    ...(status ? { status } : {}),
-    ...(q
-      ? {
-          OR: [
-            { name: { contains: q, mode: "insensitive" } },
-            { qualification: { contains: q, mode: "insensitive" } },
-            { phone: { contains: q, mode: "insensitive" } },
-            { governorate: { contains: q, mode: "insensitive" } },
-          ],
-        }
-      : {}),
-  };
+  const where = employeeListWhere(q, status);
 
   const [total, employees] = await Promise.all([
     prisma.employee.count({ where }),
@@ -67,11 +56,14 @@ export default async function EmployeesPage({
           <h1 className="text-xl font-semibold">الموظفون</h1>
           <p className="mt-1 text-sm text-foreground-muted">{total} موظف</p>
         </div>
-        <EmployeeFormModal
-          mode="create"
-          action={createEmployeeAction}
-          triggerLabel="+ موظف جديد"
-        />
+        <div className="flex flex-wrap gap-2">
+          <ExportEmployeesButton />
+          <EmployeeFormModal
+            mode="create"
+            action={createEmployeeAction}
+            triggerLabel="+ موظف جديد"
+          />
+        </div>
       </div>
 
       <EmployeesToolbar />

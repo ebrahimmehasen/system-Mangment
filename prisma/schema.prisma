@@ -66,6 +66,12 @@ model User {
   alertDismissals AlertDismissal[]
   reportPresets   ReportPreset[]
 
+  employeesCreated        Employee[]            @relation("EmployeeCreatedBy")
+  projectAssignments      ProjectAssignment[]   @relation("AssignmentUser")
+  assignmentsCreated      ProjectAssignment[]   @relation("AssignmentCreatedBy")
+  employeePaymentsCreated EmployeePayment[]     @relation("EmployeePaymentCreatedBy")
+  companyAccountEntries   CompanyAccountEntry[] @relation("CompanyAccountCreatedBy")
+
   @@map("users")
 }
 
@@ -113,15 +119,17 @@ model Project {
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
-  client       Client             @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  creator      User?              @relation("ProjectCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
-  files        ProjectFile[]
-  transactions Transaction[]
-  payments     Payment[]
-  expenses     Expense[]
-  meetings     Meeting[]
-  milestones   ProjectMilestone[]
-  reminders    Reminder[]
+  client           Client              @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  creator          User?               @relation("ProjectCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  files            ProjectFile[]
+  transactions     Transaction[]
+  payments         Payment[]
+  expenses         Expense[]
+  meetings         Meeting[]
+  milestones       ProjectMilestone[]
+  reminders        Reminder[]
+  assignments      ProjectAssignment[]
+  employeePayments EmployeePayment[]
 
   @@index([clientId])
   @@index([status])
@@ -167,11 +175,13 @@ model Transaction {
   createdBy         String?         @map("created_by") @db.Uuid
   createdAt         DateTime        @default(now()) @map("created_at")
 
-  client  Client?  @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  project Project? @relation(fields: [projectId], references: [id], onDelete: Restrict)
-  creator User?    @relation("TransactionCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
-  payment Payment?
-  expense Expense?
+  client              Client?              @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  project             Project?             @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  creator             User?                @relation("TransactionCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  payment             Payment?
+  expense             Expense?
+  employeePayment     EmployeePayment?
+  companyAccountEntry CompanyAccountEntry?
 
   @@index([projectId])
   @@index([clientId])
@@ -436,4 +446,132 @@ model ReportPreset {
   @@unique([userId, name])
   @@index([userId, lastUsedAt])
   @@map("report_presets")
+}
+
+// ═══════════════════ Phase 4: Employees / Payroll / Company account ═══════════════════
+//
+// Employees are admin-managed records (no login — that's `User`). Every
+// EmployeePayment and CompanyAccountEntry hangs off the central `Transaction`
+// ledger 1:1, exactly like Payment / Expense. Decision: employee money always
+// comes from a project's budget (recorded as an Expense of type `project`).
+
+enum EmployeeStatus {
+  active
+  inactive
+}
+
+enum AssignmentRole {
+  employee
+  supervisor
+}
+
+enum EmployeePayType {
+  commission
+  fixed
+  bonus
+  deduction
+}
+
+enum CompanyAccountDirection {
+  deposit
+  withdrawal
+}
+
+/// A company employee (not a system user). Managed from /employees by admins.
+model Employee {
+  id            String         @id @default(uuid()) @db.Uuid
+  name          String
+  age           Int?
+  country       String?
+  governorate   String?
+  phone         String?
+  qualification String?
+  cvStorageKey  String?        @map("cv_storage_key")
+  cvFileName    String?        @map("cv_file_name")
+  rating        Int?           @default(0) // 1..10, clamped in the app
+  status        EmployeeStatus @default(active)
+  notes         String?
+  createdBy     String?        @map("created_by") @db.Uuid
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  creator     User?               @relation("EmployeeCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  assignments ProjectAssignment[]
+  payments    EmployeePayment[]
+
+  @@index([status])
+  @@map("employees")
+}
+
+/// Links a project to a person working on it — an `Employee` (role=employee)
+/// or a system `User` / supervisor (role=supervisor). Exactly one of
+/// employeeId / userId is set, matching `role` (enforced in the app).
+model ProjectAssignment {
+  id         String         @id @default(uuid()) @db.Uuid
+  projectId  String         @map("project_id") @db.Uuid
+  employeeId String?        @map("employee_id") @db.Uuid
+  userId     String?        @map("user_id") @db.Uuid
+  role       AssignmentRole
+  assignedAt DateTime       @default(now()) @map("assigned_at")
+  createdBy  String?        @map("created_by") @db.Uuid
+
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  employee Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  user     User?     @relation("AssignmentUser", fields: [userId], references: [id], onDelete: Cascade)
+  creator  User?     @relation("AssignmentCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@unique([projectId, employeeId])
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@map("project_assignments")
+}
+
+/// A salary / commission / bonus / deduction for an employee, always tied to a
+/// project's budget. 1:1 with a `Transaction` like Payment / Expense.
+model EmployeePayment {
+  id                String          @id @default(uuid()) @db.Uuid
+  employeeId        String          @map("employee_id") @db.Uuid
+  projectId         String          @map("project_id") @db.Uuid
+  transactionId     String          @unique @map("transaction_id") @db.Uuid
+  payType           EmployeePayType @map("pay_type")
+  amountOriginal    Decimal         @map("amount_original") @db.Decimal(14, 2)
+  currency          Currency
+  exchangeRateToEgp Decimal         @map("exchange_rate_to_egp") @db.Decimal(18, 6)
+  amountEgp         Decimal         @map("amount_egp") @db.Decimal(14, 2)
+  date              DateTime        @db.Date
+  notes             String?
+  createdBy         String?         @map("created_by") @db.Uuid
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  employee    Employee    @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  creator     User?       @relation("EmployeePaymentCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([employeeId])
+  @@index([projectId])
+  @@map("employee_payments")
+}
+
+/// The company's internal wallet. Balance = Σ deposits − Σ withdrawals (EGP).
+/// Fed only by manual entries. 1:1 with a `Transaction`.
+model CompanyAccountEntry {
+  id                String                  @id @default(uuid()) @db.Uuid
+  direction         CompanyAccountDirection
+  transactionId     String                  @unique @map("transaction_id") @db.Uuid
+  amountOriginal    Decimal                 @map("amount_original") @db.Decimal(14, 2)
+  currency          Currency
+  exchangeRateToEgp Decimal                 @map("exchange_rate_to_egp") @db.Decimal(18, 6)
+  amountEgp         Decimal                 @map("amount_egp") @db.Decimal(14, 2)
+  date              DateTime                @db.Date
+  reason            String?
+  createdBy         String?                 @map("created_by") @db.Uuid
+  createdAt         DateTime                @default(now()) @map("created_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  creator     User?       @relation("CompanyAccountCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([direction])
+  @@index([date])
+  @@map("company_account_entries")
 }

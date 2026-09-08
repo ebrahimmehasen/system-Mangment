@@ -21,6 +21,7 @@ export interface ReportsParams {
   psort?: string;
   pdir?: string;
   pq?: string;
+  client?: string;
 }
 
 export interface ClientFinancialRow {
@@ -52,6 +53,29 @@ export interface OutstandingRow {
   remaining: string;
 }
 
+export interface ClientDetailProjectRow {
+  id: string;
+  name: string;
+  status: string;
+  finalValue: string;
+  paid: string;
+  remaining: string;
+  expenses: string;
+  profit: string;
+}
+
+export interface ClientDetail {
+  id: string;
+  name: string;
+  projectCount: number;
+  totalFinalValue: string;
+  totalPaid: string;
+  totalRemaining: string;
+  totalExpenses: string;
+  totalProfit: string;
+  projects: ClientDetailProjectRow[];
+}
+
 export interface ReportsData {
   range: DateRange;
   revenue: { month: string; total: string }[];
@@ -64,6 +88,8 @@ export interface ReportsData {
   outstanding: OutstandingRow[];
   outstandingTotal: string;
   clientRows: ClientFinancialRow[];
+  clientOptions: { id: string; name: string }[];
+  clientDetail: ClientDetail | null;
   profitability: ReturnType<typeof projectProfitability>;
 }
 
@@ -185,6 +211,43 @@ export async function getReportsData(sp: ReportsParams): Promise<ReportsData> {
       profit: s.totalProfit,
     };
   });
+
+  const clientOptions = clients.map((c) => ({ id: c.id, name: c.name }));
+
+  // Single-client drill-down (نقطة 4.8): projects + status + received/remaining.
+  let clientDetail: ClientDetail | null = null;
+  const picked = sp.client ? clients.find((c) => c.id === sp.client) : null;
+  if (picked) {
+    const s = computeClientFinancialSummary(picked.projects);
+    clientDetail = {
+      id: picked.id,
+      name: picked.name,
+      projectCount: s.projectCount,
+      totalFinalValue: s.totalFinalContractValue,
+      totalPaid: s.totalPaid,
+      totalRemaining: s.totalRemaining,
+      totalExpenses: s.totalProjectExpenses,
+      totalProfit: s.totalProfit,
+      projects: picked.projects
+        .map((p) => {
+          const final = new Prisma.Decimal(p.contractValue).minus(p.discount);
+          const paid = sum(p.payments.map((x) => x.amountEgp));
+          const exp = sum(p.expenses.map((x) => x.amountEgp));
+          return {
+            id: p.id,
+            name: p.name,
+            status: p.status,
+            finalValue: final.toFixed(2),
+            paid: paid.toFixed(2),
+            remaining: final.minus(paid).toFixed(2),
+            expenses: exp.toFixed(2),
+            profit: final.minus(exp).toFixed(2),
+          };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name, "ar")),
+    };
+  }
+
   clientRows = sortRows(clientRows, sp.csort, sp.cdir, [
     "projectCount",
     "finalValue",
@@ -219,6 +282,8 @@ export async function getReportsData(sp: ReportsParams): Promise<ReportsData> {
     outstanding,
     outstandingTotal: outstandingTotal.toFixed(2),
     clientRows,
+    clientOptions,
+    clientDetail,
     profitability,
   };
 }

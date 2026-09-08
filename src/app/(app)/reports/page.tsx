@@ -82,7 +82,7 @@ export default async function ReportsPage({
       </div>
 
       <Card className="no-print flex flex-col gap-4">
-        <ReportsDateFilter />
+        <ReportsDateFilter clients={d.clientOptions} />
         <div className="border-t border-border pt-4">
           <PresetsBar presets={presets} />
         </div>
@@ -168,7 +168,61 @@ export default async function ReportsPage({
       </Section>
 
       {/* 5. Client financial */}
-      <Section title="التقرير المالي للعملاء" note="لقطة حالية." section="clients">
+      <Section
+        title={
+          d.clientDetail
+            ? `تقرير العميل — ${d.clientDetail.name}`
+            : "التقرير المالي للعملاء"
+        }
+        note="لقطة حالية."
+        section={d.clientDetail ? "client-detail" : "clients"}
+      >
+        {d.clientDetail ? (
+          <div className="flex flex-col gap-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                { label: "عدد المشاريع", value: String(d.clientDetail.projectCount) },
+                { label: "إجمالي القيمة النهائية", value: formatEgp(d.clientDetail.totalFinalValue) },
+                { label: "إجمالي المستلَم", value: formatEgp(d.clientDetail.totalPaid) },
+                { label: "إجمالي المتبقي", value: formatEgp(d.clientDetail.totalRemaining) },
+              ].map((s) => (
+                <div key={s.label} className="rounded-md border border-border bg-surface-2 p-3">
+                  <div className="text-xs text-foreground-muted">{s.label}</div>
+                  <div className="mt-1 font-semibold">{s.value}</div>
+                </div>
+              ))}
+            </div>
+            <SimpleTable
+              head={["المشروع", "الحالة", "القيمة النهائية", "المستلَم", "المتبقي", "المصروفات", "الربح"]}
+              rows={[
+                ...d.clientDetail.projects.map((p) => [
+                  p.name,
+                  p.status,
+                  formatEgp(p.finalValue),
+                  formatEgp(p.paid),
+                  formatEgp(p.remaining),
+                  formatEgp(p.expenses),
+                  formatEgp(p.profit),
+                ]),
+                [
+                  "الإجمالي",
+                  "",
+                  formatEgp(d.clientDetail.totalFinalValue),
+                  formatEgp(d.clientDetail.totalPaid),
+                  formatEgp(d.clientDetail.totalRemaining),
+                  formatEgp(d.clientDetail.totalExpenses),
+                  formatEgp(d.clientDetail.totalProfit),
+                ],
+              ]}
+              empty="لا توجد مشاريع لهذا العميل."
+            />
+            <p className="no-print text-xs text-foreground-muted">
+              <Link href="/reports" className="text-accent hover:underline">
+                عرض كل العملاء
+              </Link>
+            </p>
+          </div>
+        ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -202,6 +256,7 @@ export default async function ReportsPage({
             </tbody>
           </table>
         </div>
+        )}
       </Section>
 
       {/* 6. Project profitability */}

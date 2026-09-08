@@ -14,14 +14,26 @@ const PRESETS: { key: string; label: string }[] = [
 const inputCls =
   "rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none";
 
-export function ReportsDateFilter() {
+export function ReportsDateFilter({
+  clients = [],
+}: {
+  clients?: { id: string; name: string }[];
+}) {
   const router = useRouter();
   const params = useSearchParams();
   const current = params.get("range") ?? "all";
+  const client = params.get("client") ?? "";
 
   function go(next: URLSearchParams) {
     // reports keep their own sort params; only reset those tied to a table page
     router.replace(`/reports?${next.toString()}`);
+  }
+
+  function setClient(value: string) {
+    const next = new URLSearchParams(Array.from(params.entries()));
+    if (value) next.set("client", value);
+    else next.delete("client");
+    go(next);
   }
 
   function setPreset(key: string) {
@@ -80,6 +92,23 @@ export function ReportsDateFilter() {
             onChange={(e) => setCustom("to", e.target.value)}
           />
         </label>
+        {clients.length > 0 && (
+          <label className="flex flex-col text-xs text-foreground-muted">
+            تقرير عميل مُحدَّد
+            <select
+              className={inputCls}
+              value={client}
+              onChange={(e) => setClient(e.target.value)}
+            >
+              <option value="">— كل العملاء —</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
     </div>
   );

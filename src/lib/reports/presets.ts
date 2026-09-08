@@ -10,6 +10,7 @@ export const PRESET_FILTER_KEYS = [
   "psort",
   "pdir",
   "pq",
+  "client",
 ] as const;
 
 export type PresetFilterKey = (typeof PRESET_FILTER_KEYS)[number];

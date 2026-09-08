@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
       psort: q.get("psort") ?? undefined,
       pdir: q.get("pdir") ?? undefined,
       pq: q.get("pq") ?? undefined,
+      client: q.get("client") ?? undefined,
     }),
     getAdvancedFinancials(dateParams),
     getOperationalReports(dateParams),

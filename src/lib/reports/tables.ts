@@ -10,7 +10,38 @@ export interface ReportTable {
 
 /** All /reports sections as flat, exportable tables. */
 export function reportsToTables(d: ReportsData): ReportTable[] {
+  const clientDetailTables: ReportTable[] = d.clientDetail
+    ? [
+        {
+          key: "client-detail",
+          title: `تقرير العميل — ${d.clientDetail.name}`,
+          columns: ["المشروع", "الحالة", "القيمة النهائية", "المستلَم", "المتبقي", "المصروفات", "الربح"],
+          rows: [
+            ...d.clientDetail.projects.map((p) => [
+              p.name,
+              p.status,
+              formatEgp(p.finalValue),
+              formatEgp(p.paid),
+              formatEgp(p.remaining),
+              formatEgp(p.expenses),
+              formatEgp(p.profit),
+            ]),
+            [
+              `الإجمالي (${d.clientDetail.projectCount} مشروع)`,
+              "",
+              formatEgp(d.clientDetail.totalFinalValue),
+              formatEgp(d.clientDetail.totalPaid),
+              formatEgp(d.clientDetail.totalRemaining),
+              formatEgp(d.clientDetail.totalExpenses),
+              formatEgp(d.clientDetail.totalProfit),
+            ],
+          ],
+        },
+      ]
+    : [];
+
   return [
+    ...clientDetailTables,
     {
       key: "revenue",
       title: "تقرير الإيرادات",

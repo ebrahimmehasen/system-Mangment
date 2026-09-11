@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { parseClientForm, toCreateData } from "@/lib/services/clients";
 
@@ -38,7 +38,7 @@ export async function createClientAction(
   _prev: ClientActionState,
   formData: FormData,
 ): Promise<ClientActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const { values, errors } = parseClientForm(formData);
 
   if (Object.keys(errors).length > 0) {
@@ -71,7 +71,7 @@ export async function updateClientAction(
   _prev: ClientActionState,
   formData: FormData,
 ): Promise<ClientActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const { values, errors } = parseClientForm(formData);
 
   if (Object.keys(errors).length > 0) {
@@ -115,7 +115,7 @@ export async function updateClientAction(
 export async function deleteClientAction(
   clientId: string,
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const client = await prisma.client.findUnique({
     where: { id: clientId },

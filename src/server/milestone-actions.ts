@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { parseMilestoneForm } from "@/lib/services/milestones";
 
@@ -34,7 +34,7 @@ export async function createMilestoneAction(
   _prev: MilestoneActionState,
   formData: FormData,
 ): Promise<MilestoneActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const { values, errors, parsed } = parseMilestoneForm(formData);
 
   if (Object.keys(errors).length > 0) {
@@ -86,7 +86,7 @@ export async function updateMilestoneAction(
   _prev: MilestoneActionState,
   formData: FormData,
 ): Promise<MilestoneActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const { values, errors, parsed } = parseMilestoneForm(formData);
 
   const existing = await prisma.projectMilestone.findUnique({
@@ -128,7 +128,7 @@ export async function updateMilestoneAction(
 export async function toggleMilestoneCompleteAction(
   milestoneId: string,
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const existing = await prisma.projectMilestone.findUnique({
     where: { id: milestoneId },
@@ -163,7 +163,7 @@ export async function toggleMilestoneCompleteAction(
 export async function deleteMilestoneAction(
   milestoneId: string,
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const existing = await prisma.projectMilestone.findUnique({
     where: { id: milestoneId },
@@ -197,7 +197,7 @@ export async function moveMilestoneAction(
   milestoneId: string,
   direction: "up" | "down",
 ): Promise<{ error?: string }> {
-  await requireUser();
+  await requireAdmin();
 
   const current = await prisma.projectMilestone.findUnique({
     where: { id: milestoneId },

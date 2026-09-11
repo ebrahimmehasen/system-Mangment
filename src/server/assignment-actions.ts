@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 
 export interface AssignmentActionState {
@@ -20,7 +20,7 @@ export async function assignToProjectAction(
   _prev: AssignmentActionState,
   formData: FormData,
 ): Promise<AssignmentActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const role = String(formData.get("role") ?? "");
   const personId = String(formData.get("personId") ?? "").trim();
@@ -89,7 +89,7 @@ export async function assignToProjectAction(
 export async function removeAssignmentAction(
   assignmentId: string,
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const assignment = await prisma.projectAssignment.findUnique({
     where: { id: assignmentId },

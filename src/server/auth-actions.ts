@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireUser } from "@/lib/auth";
+import { requireUser, requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { writeAuditLog } from "@/lib/audit";
 
@@ -100,6 +100,14 @@ export async function resetUserPasswordAction(
     return { error: 'استخدم نموذج "تغيير كلمة المرور" لتغيير كلمة مرورك أنت.' };
   }
 
+  // Only an admin may reset someone ELSE's password at all — an employee
+  // can never do this, not even for another employee (matrix: "تغيير باسورد
+  // موظف: ✅ أي أدمن ❌ موظف"). The admin-vs-admin super-admin check below
+  // narrows it further once we know the caller is at least an admin.
+  if (actingUser.role !== "admin") {
+    return { error: "غير مصرّح لك بتغيير كلمة مرور مستخدم تاني." };
+  }
+
   const newPassword = String(formData.get("newPassword") ?? "");
   const confirmPassword = String(formData.get("confirmPassword") ?? "");
   if (newPassword.length < 8) {
@@ -147,7 +155,7 @@ export async function createAdminAction(
   formData: FormData,
 ): Promise<ActionState> {
   // Only an existing signed-in admin may add another admin.
-  await requireUser();
+  await requireAdmin();
 
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();

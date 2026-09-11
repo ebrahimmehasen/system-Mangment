@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { serverEnv } from "@/lib/env";
 import {
@@ -22,7 +22,7 @@ export async function uploadProjectFileAction(
   _prev: FileActionState,
   formData: FormData,
 ): Promise<FileActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const project = await prisma.project.findUnique({
     where: { id: projectId },
@@ -96,7 +96,7 @@ export async function uploadProjectFileAction(
 export async function deleteProjectFileAction(
   fileId: string,
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const record = await prisma.projectFile.findUnique({ where: { id: fileId } });
   if (!record) return { error: "الملف غير موجود." };

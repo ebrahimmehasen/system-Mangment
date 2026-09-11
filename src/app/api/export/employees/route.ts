@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/db/prisma";
+import { requireAdminApi } from "@/lib/api-auth";
 import { formatEgp } from "@/lib/money";
 import { employeeListWhere } from "@/lib/services/employees";
 import { computeEmployeePayrollSummary } from "@/lib/services/payroll";
@@ -8,13 +8,8 @@ import { buildWorkbook } from "@/lib/export/excel";
 import type { ReportTable } from "@/lib/reports/tables";
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "غير مصرّح" }, { status: 401 });
-  }
+  const auth = await requireAdminApi();
+  if (auth.response) return auth.response;
 
   const sp = request.nextUrl.searchParams;
   const q = sp.get("q") ?? "";

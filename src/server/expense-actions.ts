@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { parseExpenseForm } from "@/lib/services/transactions";
 
@@ -17,7 +17,7 @@ export async function createExpenseAction(
   _prev: ExpenseActionState,
   formData: FormData,
 ): Promise<ExpenseActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const { values, errors, parsed } = parseExpenseForm(formData);
 
   const back = () => ({
@@ -118,7 +118,7 @@ export async function createExpenseAction(
 export async function deleteExpenseAction(
   expenseId: string,
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const expense = await prisma.expense.findUnique({
     where: { id: expenseId },

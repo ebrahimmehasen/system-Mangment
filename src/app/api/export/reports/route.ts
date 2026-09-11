@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdminApi } from "@/lib/api-auth";
 import { getReportsData } from "@/lib/reports/data";
 import { reportsToTables } from "@/lib/reports/tables";
 import { getAdvancedFinancials, advancedToTables } from "@/lib/reports/advanced";
@@ -9,13 +9,8 @@ import { buildCsv } from "@/lib/export/csv";
 import { buildReportsPdf } from "@/lib/export/pdf";
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "غير مصرّح" }, { status: 401 });
-  }
+  const auth = await requireAdminApi();
+  if (auth.response) return auth.response;
 
   const q = request.nextUrl.searchParams;
   const fmtParam = q.get("format");

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { parseCompanyEntryForm } from "@/lib/services/company-account";
 
@@ -23,7 +23,7 @@ async function createEntry(
   direction: "deposit" | "withdrawal",
   formData: FormData,
 ): Promise<CompanyAccountActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const { values, errors, parsed } = parseCompanyEntryForm(formData);
 
   if (Object.keys(errors).length > 0) {
@@ -104,7 +104,7 @@ export async function withdrawFromCompanyAccountAction(
 export async function deleteCompanyAccountEntryAction(
   entryId: string,
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const entry = await prisma.companyAccountEntry.findUnique({
     where: { id: entryId },

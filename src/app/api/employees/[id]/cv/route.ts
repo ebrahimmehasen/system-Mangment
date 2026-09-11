@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/db/prisma";
+import { requireAdminApi } from "@/lib/api-auth";
 import { EMPLOYEE_CVS_BUCKET, createSignedUrl } from "@/lib/storage";
 
 /**
@@ -8,7 +8,8 @@ import { EMPLOYEE_CVS_BUCKET, createSignedUrl } from "@/lib/storage";
  *   ?mode=download  -> forces a download
  *   (default)       -> opens inline
  *
- * Every request is authenticated. No permanent public URLs are exposed.
+ * Admin-only (HR data) — every request is authenticated AND must be an
+ * admin. No permanent public URLs are exposed.
  */
 export async function GET(
   request: NextRequest,
@@ -16,13 +17,8 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "غير مصرّح" }, { status: 401 });
-  }
+  const auth = await requireAdminApi();
+  if (auth.response) return auth.response;
 
   const employee = await prisma.employee.findUnique({
     where: { id },

@@ -1,15 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/db/prisma";
+import { requireAdminApi } from "@/lib/api-auth";
 
+// Admin-only — this powers the admin Topbar's client/project search; the
+// employee portal has no search box and clients/projects are company-wide
+// data an employee has no defined access to.
 export async function GET(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "غير مصرّح" }, { status: 401 });
-  }
+  const auth = await requireAdminApi();
+  if (auth.response) return auth.response;
 
   const q = (request.nextUrl.searchParams.get("q") ?? "").trim();
   if (q.length < 2) {

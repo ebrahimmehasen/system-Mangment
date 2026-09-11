@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import {
   parseEmployeePaymentForm,
@@ -32,7 +32,7 @@ export async function payEmployeeAction(
   _prev: PayrollActionState,
   formData: FormData,
 ): Promise<PayrollActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const { values, errors, parsed } = parseEmployeePaymentForm(formData);
 
   const back = (): PayrollActionState => ({
@@ -158,7 +158,7 @@ export async function payEmployeeAction(
 export async function deleteEmployeePaymentAction(
   paymentId: string,
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const payment = await prisma.employeePayment.findUnique({
     where: { id: paymentId },

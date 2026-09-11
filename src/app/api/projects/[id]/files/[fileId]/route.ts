@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/db/prisma";
+import { requireAdminApi } from "@/lib/api-auth";
 import { createSignedUrl } from "@/lib/storage";
 
 /**
@@ -8,8 +8,10 @@ import { createSignedUrl } from "@/lib/storage";
  *   ?mode=download  -> forces a download
  *   (default)       -> opens inline (e.g. PDF in the browser)
  *
- * Every request is authenticated and the file is checked to belong to
- * the project in the path. No permanent public URLs are ever exposed.
+ * Admin-only — the employee portal doesn't expose project files (point 6
+ * only shows assignment/commission info), so there's no legitimate
+ * employee use case yet. The file is also checked to belong to the
+ * project in the path. No permanent public URLs are ever exposed.
  */
 export async function GET(
   request: NextRequest,
@@ -17,13 +19,8 @@ export async function GET(
 ) {
   const { id: projectId, fileId } = await params;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "غير مصرّح" }, { status: 401 });
-  }
+  const auth = await requireAdminApi();
+  if (auth.response) return auth.response;
 
   const file = await prisma.projectFile.findUnique({ where: { id: fileId } });
   if (!file || file.projectId !== projectId) {

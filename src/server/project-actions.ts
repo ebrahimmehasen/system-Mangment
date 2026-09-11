@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { parseProjectForm } from "@/lib/services/projects";
 import { removeFromStorage } from "@/lib/storage";
@@ -48,7 +48,7 @@ export async function createProjectAction(
   _prev: ProjectActionState,
   formData: FormData,
 ): Promise<ProjectActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const { values, errors, parsed } = parseProjectForm(formData);
 
   if (values.clientId) {
@@ -104,7 +104,7 @@ export async function updateProjectAction(
   _prev: ProjectActionState,
   formData: FormData,
 ): Promise<ProjectActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const { values, errors, parsed } = parseProjectForm(formData);
 
   const existing = await prisma.project.findUnique({ where: { id: projectId } });
@@ -163,7 +163,7 @@ export async function changeProjectStatusAction(
   projectId: string,
   status: string,
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   if (!(await validStatuses()).has(status)) {
     return { error: "حالة غير صالحة." };
@@ -200,7 +200,7 @@ export async function changeProjectStatusAction(
 export async function deleteProjectAction(
   projectId: string,
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const project = await prisma.project.findUnique({
     where: { id: projectId },

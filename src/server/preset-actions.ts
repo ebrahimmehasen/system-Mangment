@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import {
   MAX_PRESETS_PER_USER,
   MAX_PRESET_NAME,
@@ -23,7 +23,7 @@ export async function savePresetAction(
   _prev: PresetActionState,
   formData: FormData,
 ): Promise<PresetActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { error: "أدخل اسمًا للإعداد." };
@@ -63,7 +63,7 @@ export async function deletePresetAction(
   _prev: PresetActionState,
   formData: FormData,
 ): Promise<PresetActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "معرّف غير صالح." };
 
@@ -76,7 +76,7 @@ export async function deletePresetAction(
 
 /** Delete a preset from a plain <form action> (reports center). */
 export async function deletePresetFormAction(formData: FormData): Promise<void> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const id = String(formData.get("id") ?? "");
   if (id) {
     await prisma.reportPreset.deleteMany({ where: { id, userId: user.id } });
@@ -87,7 +87,7 @@ export async function deletePresetFormAction(formData: FormData): Promise<void> 
 
 /** Bump lastUsedAt without navigating (called from the client PresetsBar). */
 export async function touchPresetAction(id: string): Promise<void> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   await prisma.reportPreset.updateMany({
     where: { id, userId: user.id },
     data: { lastUsedAt: new Date() },
@@ -97,7 +97,7 @@ export async function touchPresetAction(id: string): Promise<void> {
 
 /** Mark a preset as just-used and navigate to /reports with its filters. */
 export async function applyPresetAction(formData: FormData): Promise<void> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const id = String(formData.get("id") ?? "");
 
   const preset = await prisma.reportPreset.findFirst({

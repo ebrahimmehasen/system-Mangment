@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { sum } from "@/lib/money";
 import { parsePaymentForm } from "@/lib/services/transactions";
@@ -21,7 +21,7 @@ export async function createPaymentAction(
   _prev: PaymentActionState,
   formData: FormData,
 ): Promise<PaymentActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const { values, errors, parsed, confirmed } = parsePaymentForm(formData);
 
   const back = () => ({

@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { prisma } from "@/lib/db/prisma";
+import { requireAdminApi } from "@/lib/api-auth";
 import {
   buildEmployeeReportPdf,
   employeeReportContentDisposition,
@@ -12,21 +11,11 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "غير مصرّح" }, { status: 401 });
-  }
-
   // Admin-only: any employee's report. An employee's own report is served
   // by /api/export/employees/self instead — this stops an employee-role
   // login from reading another employee's payroll data by guessing an id.
-  const profile = await prisma.user.findUnique({ where: { id: user.id } });
-  if (profile?.role !== "admin") {
-    return NextResponse.json({ error: "غير مصرّح" }, { status: 403 });
-  }
+  const auth = await requireAdminApi();
+  if (auth.response) return auth.response;
 
   const report = await buildEmployeeReportPdf(id);
   if (!report) {

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { serverEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -103,7 +103,7 @@ export async function createEmployeeAction(
   _prev: EmployeeActionState,
   formData: FormData,
 ): Promise<EmployeeActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const { values, errors, parsed } = parseEmployeeForm(formData);
   if (Object.keys(errors).length > 0) return backWithErrors(errors, values);
 
@@ -151,7 +151,7 @@ export async function updateEmployeeAction(
   _prev: EmployeeActionState,
   formData: FormData,
 ): Promise<EmployeeActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const { values, errors, parsed } = parseEmployeeForm(formData);
   if (Object.keys(errors).length > 0) return backWithErrors(errors, values);
 
@@ -211,7 +211,7 @@ export async function uploadEmployeeCvAction(
   _prev: CvActionState,
   formData: FormData,
 ): Promise<CvActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const existing = await prisma.employee.findUnique({ where: { id: employeeId } });
   if (!existing) return { error: "الموظف غير موجود." };
@@ -258,7 +258,7 @@ export async function uploadEmployeeCvAction(
 export async function deleteEmployeeCvAction(
   employeeId: string,
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
   if (!employee) return { error: "الموظف غير موجود." };
@@ -293,7 +293,7 @@ export async function deleteEmployeeCvAction(
 export async function deleteEmployeeAction(
   employeeId: string,
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const employee = await prisma.employee.findUnique({
     where: { id: employeeId },
@@ -343,7 +343,7 @@ export async function setEmployeeRatingAction(
   employeeId: string,
   rating: number,
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   if (!Number.isInteger(rating) || rating < 0 || rating > 10) {
     return { error: "التقييم يجب أن يكون رقمًا من 0 إلى 10." };
@@ -402,7 +402,7 @@ export async function createEmployeeLoginAction(
   _prev: CreateEmployeeLoginState,
   formData: FormData,
 ): Promise<CreateEmployeeLoginState> {
-  const actingUser = await requireUser();
+  const actingUser = await requireAdmin();
 
   const username = String(formData.get("username") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");

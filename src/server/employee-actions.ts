@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 import { requireUser } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { serverEnv } from "@/lib/env";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   EMPLOYEE_CVS_BUCKET,
   buildCvStorageKey,
@@ -375,4 +376,97 @@ export async function setEmployeeRatingAction(
 
   revalidatePath(`/employees/${employeeId}`);
   return {};
+}
+
+// ────────────────────── Employee portal login (Phase 5.2) ──────────────────────
+
+const EMPLOYEE_LOGIN_DOMAIN = "404legends.local";
+const USERNAME_RE = /^[a-z0-9](?:[a-z0-9._-]{1,28}[a-z0-9])?$/i;
+
+export interface CreateEmployeeLoginState {
+  error?: string;
+  success?: string;
+  values?: Record<string, string>;
+}
+
+/**
+ * Creates a Supabase Auth login (role "employee") for an existing Employee
+ * record and links it via Employee.userId. Reuses the same
+ * admin.auth.admin.createUser flow as createAdminAction (auth-actions.ts),
+ * but the "email" is a generated internal address
+ * (`<username>@404legends.local`) since employees don't need a real inbox
+ * to sign in — the admin picks a username and an initial password.
+ */
+export async function createEmployeeLoginAction(
+  employeeId: string,
+  _prev: CreateEmployeeLoginState,
+  formData: FormData,
+): Promise<CreateEmployeeLoginState> {
+  const actingUser = await requireUser();
+
+  const username = String(formData.get("username") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+
+  if (!USERNAME_RE.test(username)) {
+    return {
+      error:
+        "اسم المستخدم يجب أن يكون بالإنجليزية/أرقام (3 أحرف على الأقل)، بدون مسافات.",
+      values: { username },
+    };
+  }
+  if (password.length < 8) {
+    return {
+      error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل.",
+      values: { username },
+    };
+  }
+
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: { id: true, name: true, userId: true },
+  });
+  if (!employee) return { error: "الموظف غير موجود." };
+  if (employee.userId) return { error: "للموظف حساب دخول بالفعل." };
+
+  const email = `${username}@${EMPLOYEE_LOGIN_DOMAIN}`;
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    return { error: "اسم المستخدم مستخدم بالفعل، اختر اسمًا آخر.", values: { username } };
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { name: employee.name, role: "employee" },
+  });
+  if (error || !data.user) {
+    return { error: `تعذّر إنشاء الحساب: ${error?.message ?? "خطأ غير معروف"}` };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.user.upsert({
+      where: { id: data.user!.id },
+      update: { name: employee.name, role: "employee" },
+      create: { id: data.user!.id, email, name: employee.name, role: "employee" },
+    });
+    await tx.employee.update({
+      where: { id: employeeId },
+      data: { userId: data.user!.id },
+    });
+    await writeAuditLog(
+      {
+        userId: actingUser.id,
+        action: "created",
+        entity: "employee_login",
+        entityId: employeeId,
+        newValue: { username, email },
+      },
+      tx,
+    );
+  });
+
+  revalidatePath(`/employees/${employeeId}`);
+  return { success: `تم إنشاء حساب الدخول. اسم المستخدم: ${email}` };
 }

@@ -6,7 +6,10 @@ import { ChangePasswordForm } from "./ChangePasswordForm";
 
 export default async function TeamPage() {
   const me = await requireUser();
-  const users = await prisma.user.findMany({ orderBy: { createdAt: "asc" } });
+  const users = await prisma.user.findMany({
+    where: { role: "admin" },
+    orderBy: { createdAt: "asc" },
+  });
 
   const dateFmt = new Intl.DateTimeFormat("ar-EG", { dateStyle: "medium" });
 

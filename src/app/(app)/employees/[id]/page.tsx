@@ -13,6 +13,7 @@ import { CvSection } from "./CvSection";
 import { RatingControl } from "./RatingControl";
 import { EmployeePaymentModal } from "./EmployeePaymentModal";
 import { DeletePaymentButton } from "./DeletePaymentButton";
+import { CreateEmployeeLoginModal } from "./CreateEmployeeLoginModal";
 
 type PayType = keyof typeof PAY_TYPE_LABELS;
 
@@ -28,6 +29,7 @@ export default async function EmployeeProfilePage({
     prisma.employee.findUnique({
       where: { id },
       include: {
+        user: { select: { email: true } },
         assignments: {
           orderBy: { assignedAt: "desc" },
           include: {
@@ -127,6 +129,28 @@ export default async function EmployeeProfilePage({
           <Info label="أُضيف في" value={dateFmt.format(employee.createdAt)} />
           <Info label="ملاحظات" value={employee.notes} />
         </dl>
+      </Card>
+
+      {/* Portal login */}
+      <Card>
+        <h2 className="mb-1 text-base font-semibold">حساب الدخول (بوابة الموظف)</h2>
+        {employee.user ? (
+          <>
+            <p className="mb-1 text-sm text-foreground-muted">
+              للموظف حساب دخول فعّال.
+            </p>
+            <p dir="ltr" className="text-sm text-foreground">
+              {employee.user.email}
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="mb-4 text-sm text-foreground-muted">
+              الموظف لسه معندوش حساب دخول لبوابة الموظفين.
+            </p>
+            <CreateEmployeeLoginModal employeeId={employee.id} />
+          </>
+        )}
       </Card>
 
       {/* Assigned projects */}

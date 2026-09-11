@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { getActiveAlerts } from "@/lib/get-alerts";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -9,6 +10,10 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const user = await requireUser();
+  // Employee-portal accounts (Phase 5) don't get the admin panel — the
+  // dedicated employee portal isn't built yet, so send them somewhere inert
+  // instead of leaving this gate open to full admin access in the meantime.
+  if (user.role !== "admin") redirect("/employee-pending");
   const alerts = await getActiveAlerts(user.id);
 
   return (

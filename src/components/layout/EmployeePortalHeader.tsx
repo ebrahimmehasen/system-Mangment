@@ -12,7 +12,9 @@ const LINKS = [
   { href: "/employee", label: "الرئيسية" },
   { href: "/employee/leads", label: "العملاء المستهدفون" },
   { href: "/employee/projects", label: "مشاريعي" },
-  { href: "/employee/reminders", label: "التقويم والتذكيرات" },
+  { href: "/employee/clients", label: "إضافة عميل" },
+  { href: "/employee/calendar", label: "التقويم" },
+  { href: "/employee/reminders", label: "تذكيراتي" },
   { href: "/employee/announcements", label: "الإعلانات" },
 ];
 

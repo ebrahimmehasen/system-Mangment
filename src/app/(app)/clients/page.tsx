@@ -8,6 +8,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { createClientAction } from "@/server/client-actions";
 import { ClientFormModal } from "./ClientFormModal";
 import { ClientsToolbar } from "./ClientsToolbar";
+import { ClientSubmissionReviewRow } from "./ClientSubmissionReviewRow";
 
 const PAGE_SIZE = 10;
 
@@ -37,7 +38,7 @@ export default async function ClientsPage({
       : {}),
   };
 
-  const [total, clients] = await Promise.all([
+  const [total, clients, pendingSubmissions] = await Promise.all([
     prisma.client.count({ where }),
     prisma.client.findMany({
       where,
@@ -45,6 +46,11 @@ export default async function ClientsPage({
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
       include: { _count: { select: { projects: true } } },
+    }),
+    prisma.clientSubmission.findMany({
+      where: { status: "pending" },
+      orderBy: { createdAt: "asc" },
+      include: { submittedBy: { select: { name: true } } },
     }),
   ]);
 
@@ -75,6 +81,19 @@ export default async function ClientsPage({
           triggerLabel="+ عميل جديد"
         />
       </div>
+
+      {pendingSubmissions.length > 0 && (
+        <Card>
+          <h2 className="mb-3 text-base font-semibold">
+            طلبات عملاء جديدة من الموظفين ({pendingSubmissions.length})
+          </h2>
+          <div className="flex flex-col gap-3">
+            {pendingSubmissions.map((s) => (
+              <ClientSubmissionReviewRow key={s.id} submission={s} />
+            ))}
+          </div>
+        </Card>
+      )}
 
       <ClientsToolbar />
 

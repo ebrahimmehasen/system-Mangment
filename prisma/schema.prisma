@@ -69,14 +69,15 @@ model User {
   alertDismissals   AlertDismissal[]
   reportPresets     ReportPreset[]
 
-  employeesCreated        Employee[]            @relation("EmployeeCreatedBy")
-  employeeProfile         Employee?             @relation("EmployeeUser")
-  projectAssignments      ProjectAssignment[]   @relation("AssignmentUser")
-  assignmentsCreated      ProjectAssignment[]   @relation("AssignmentCreatedBy")
-  employeePaymentsCreated EmployeePayment[]     @relation("EmployeePaymentCreatedBy")
-  companyAccountEntries   CompanyAccountEntry[] @relation("CompanyAccountCreatedBy")
-  targetClientsCreated    TargetClient[]        @relation("TargetClientCreatedBy")
-  announcementsCreated    Announcement[]        @relation("AnnouncementCreatedBy")
+  employeesCreated          Employee[]            @relation("EmployeeCreatedBy")
+  employeeProfile           Employee?             @relation("EmployeeUser")
+  projectAssignments        ProjectAssignment[]   @relation("AssignmentUser")
+  assignmentsCreated        ProjectAssignment[]   @relation("AssignmentCreatedBy")
+  employeePaymentsCreated   EmployeePayment[]     @relation("EmployeePaymentCreatedBy")
+  companyAccountEntries     CompanyAccountEntry[] @relation("CompanyAccountCreatedBy")
+  targetClientsCreated      TargetClient[]        @relation("TargetClientCreatedBy")
+  announcementsCreated      Announcement[]        @relation("AnnouncementCreatedBy")
+  clientSubmissionsReviewed ClientSubmission[]    @relation("ClientSubmissionReviewedBy")
 
   @@map("users")
 }
@@ -96,12 +97,13 @@ model Client {
   createdAt   DateTime     @default(now()) @map("created_at")
   updatedAt   DateTime     @updatedAt @map("updated_at")
 
-  creator      User?         @relation("ClientCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  creator      User?             @relation("ClientCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
   projects     Project[]
   transactions Transaction[]
   payments     Payment[]
   meetings     Meeting[]
   reminders    Reminder[]
+  submission   ClientSubmission?
 
   @@index([status])
   @@map("clients")
@@ -519,6 +521,7 @@ model Employee {
   payments               EmployeePayment[]
   claimedTargetClients   TargetClient[]         @relation("TargetClientClaimedBy")
   targetClientActivities TargetClientActivity[]
+  clientSubmissions      ClientSubmission[]     @relation("ClientSubmissionSubmittedBy")
 
   @@index([status])
   @@map("employees")
@@ -693,4 +696,42 @@ model Announcement {
   creator User? @relation("AnnouncementCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
 
   @@map("announcements")
+}
+
+// ═══════════════════ Client submissions (employee-proposed) ═══════════════════
+//
+// An employee can propose a brand-new real Client (not a TargetClient/lead —
+// those are pre-sale prospects; this is "I already have a client who wants
+// to sign on"). It never touches the `clients` table directly: an admin must
+// approve it first, which is what actually creates the Client row (via the
+// same parseClientForm/toCreateData path as an admin creating one directly).
+
+enum ClientSubmissionStatus {
+  pending
+  approved
+  rejected
+}
+
+model ClientSubmission {
+  id                String                 @id @default(uuid()) @db.Uuid
+  name              String
+  companyName       String?                @map("company_name")
+  phone             String?
+  email             String?
+  address           String?
+  notes             String?
+  status            ClientSubmissionStatus @default(pending)
+  submittedById     String?                @map("submitted_by_id") @db.Uuid
+  reviewedById      String?                @map("reviewed_by_id") @db.Uuid
+  reviewedAt        DateTime?              @map("reviewed_at")
+  rejectionReason   String?                @map("rejection_reason")
+  resultingClientId String?                @unique @map("resulting_client_id") @db.Uuid
+  createdAt         DateTime               @default(now()) @map("created_at")
+
+  submittedBy     Employee? @relation("ClientSubmissionSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
+  reviewedBy      User?     @relation("ClientSubmissionReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  resultingClient Client?   @relation(fields: [resultingClientId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@map("client_submissions")
 }

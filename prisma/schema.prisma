@@ -75,6 +75,7 @@ model User {
   assignmentsCreated      ProjectAssignment[]   @relation("AssignmentCreatedBy")
   employeePaymentsCreated EmployeePayment[]     @relation("EmployeePaymentCreatedBy")
   companyAccountEntries   CompanyAccountEntry[] @relation("CompanyAccountCreatedBy")
+  targetClientsCreated    TargetClient[]        @relation("TargetClientCreatedBy")
 
   @@map("users")
 }
@@ -511,10 +512,12 @@ model Employee {
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
 
-  creator     User?               @relation("EmployeeCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
-  user        User?               @relation("EmployeeUser", fields: [userId], references: [id], onDelete: SetNull)
-  assignments ProjectAssignment[]
-  payments    EmployeePayment[]
+  creator                User?                  @relation("EmployeeCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  user                   User?                  @relation("EmployeeUser", fields: [userId], references: [id], onDelete: SetNull)
+  assignments            ProjectAssignment[]
+  payments               EmployeePayment[]
+  claimedTargetClients   TargetClient[]         @relation("TargetClientClaimedBy")
+  targetClientActivities TargetClientActivity[]
 
   @@index([status])
   @@map("employees")
@@ -591,4 +594,79 @@ model CompanyAccountEntry {
   @@index([direction])
   @@index([date])
   @@map("company_account_entries")
+}
+
+// ═══════════════════ Phase 5: Target clients (leads) ═══════════════════
+//
+// A TargetClient is a lead — a company the sales team is trying to close,
+// separate from `Client` (an already-signed client). An Employee "claims"
+// an available one to work it; a lost deal does NOT return to the pool
+// automatically (decision, 2026-09-11) — it stays claimed, visibly marked
+// lost, until an admin explicitly unassigns it (clears claimedById, reopens
+// status to available). TargetClientActivity is a single unified timeline
+// for notes/reports/voice-calls, ordered by createdAt. Voice-call fields
+// (driveFileId/driveWebLink/durationSeconds) are reserved now but the
+// Google Drive upload flow itself is postponed — not built in Phase 5.4.
+
+enum TargetClientStatus {
+  available
+  claimed
+  won
+  lost
+  inactive
+}
+
+enum TargetClientActivityKind {
+  note
+  report
+  voice_call
+}
+
+model TargetClient {
+  id            String             @id @default(uuid()) @db.Uuid
+  companyName   String             @map("company_name")
+  contactPhones String[]           @map("contact_phones")
+  socialLinks   Json?              @map("social_links")
+  website       String?
+  companySize   String?            @map("company_size")
+  script        String?
+  notes         String?
+  status        TargetClientStatus @default(available)
+  hidden        Boolean            @default(false) @map("hidden_from_employees")
+  claimedById   String?            @map("claimed_by_id") @db.Uuid
+  claimedAt     DateTime?          @map("claimed_at")
+  closedAt      DateTime?          @map("closed_at")
+  createdBy     String?            @map("created_by") @db.Uuid
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  claimedBy  Employee?              @relation("TargetClientClaimedBy", fields: [claimedById], references: [id], onDelete: SetNull)
+  creator    User?                  @relation("TargetClientCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  activities TargetClientActivity[]
+
+  @@index([status])
+  @@index([hidden])
+  @@index([claimedById])
+  @@map("target_clients")
+}
+
+model TargetClientActivity {
+  id              String                   @id @default(uuid()) @db.Uuid
+  targetClientId  String                   @map("target_client_id") @db.Uuid
+  employeeId      String?                  @map("employee_id") @db.Uuid
+  kind            TargetClientActivityKind
+  body            String?
+  fileStorageKey  String?                  @map("file_storage_key")
+  fileName        String?                  @map("file_name")
+  driveFileId     String?                  @map("drive_file_id")
+  driveWebLink    String?                  @map("drive_web_link")
+  durationSeconds Int?                     @map("duration_seconds")
+  createdAt       DateTime                 @default(now()) @map("created_at")
+
+  targetClient TargetClient @relation(fields: [targetClientId], references: [id], onDelete: Cascade)
+  employee     Employee?    @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+
+  @@index([targetClientId])
+  @@index([kind])
+  @@map("target_client_activities")
 }

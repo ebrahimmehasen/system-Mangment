@@ -28,6 +28,8 @@ export const AUDIT_ENTITIES: Record<string, string> = {
   employee_payment: "دفعة موظف",
   employee_login: "حساب دخول موظف",
   admin_password: "كلمة مرور مشرف",
+  target_client: "عميل مستهدف",
+  target_client_activity: "نشاط عميل مستهدف",
 };
 
 export const actionLabel = (a: string) => AUDIT_ACTIONS[a] ?? a;

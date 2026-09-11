@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const PROJECT_FILES_BUCKET = "project-files";
 export const EMPLOYEE_CVS_BUCKET = "employee-cvs";
+export const TARGET_CLIENT_REPORTS_BUCKET = "target-client-reports";
 
 /**
  * Phase 1 accepts PDF only. Adding a type here (plus the DB `file_type`
@@ -73,6 +74,11 @@ export function buildStorageKey(projectId: string, fileName: string): string {
 /** `employees/{employeeId}/{uuid}-{safeName}` */
 export function buildCvStorageKey(employeeId: string, fileName: string): string {
   return `employees/${employeeId}/${crypto.randomUUID()}-${safeName(fileName)}`;
+}
+
+/** `target-clients/{targetClientId}/{uuid}-{safeName}` */
+export function buildTargetClientReportKey(targetClientId: string, fileName: string): string {
+  return `target-clients/${targetClientId}/${crypto.randomUUID()}-${safeName(fileName)}`;
 }
 
 // ─────────────────── Employee CV validation (نقطة 4.2) ───────────────────

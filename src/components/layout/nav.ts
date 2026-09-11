@@ -8,6 +8,7 @@ export const NAV: NavItem[] = [
   { href: "/clients", label: "العملاء" },
   { href: "/projects", label: "المشاريع" },
   { href: "/employees", label: "الموظفون" },
+  { href: "/target-clients", label: "العملاء المستهدفون" },
   { href: "/calendar", label: "التقويم" },
   { href: "/meetings", label: "الاجتماعات" },
   { href: "/reminders", label: "التذكيرات" },

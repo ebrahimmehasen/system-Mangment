@@ -9,6 +9,7 @@ export interface CurrentUser {
   email: string;
   name: string | null;
   role: string;
+  isSuperAdmin: boolean;
 }
 
 /**
@@ -42,5 +43,6 @@ export async function requireUser(): Promise<CurrentUser> {
     email: profile.email,
     name: profile.name,
     role: profile.role,
+    isSuperAdmin: profile.isSuperAdmin,
   };
 }

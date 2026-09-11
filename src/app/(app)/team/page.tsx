@@ -1,6 +1,8 @@
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { ResetPasswordModal } from "@/components/auth/ResetPasswordModal";
 import { AddAdminForm } from "./AddAdminForm";
 import { ChangePasswordForm } from "./ChangePasswordForm";
 
@@ -31,6 +33,7 @@ export default async function TeamPage() {
                 <th className="px-4 py-3 font-medium">البريد الإلكتروني</th>
                 <th className="px-4 py-3 font-medium">الدور</th>
                 <th className="px-4 py-3 font-medium">أُضيف في</th>
+                <th className="px-4 py-3 font-medium">إجراءات</th>
               </tr>
             </thead>
             <tbody>
@@ -43,12 +46,24 @@ export default async function TeamPage() {
                         (أنت)
                       </span>
                     )}
+                    {u.isSuperAdmin && (
+                      <Badge tone="accent" className="mr-2">
+                        سوبر أدمن
+                      </Badge>
+                    )}
                   </td>
                   <td dir="ltr" className="px-4 py-3 text-right">
                     {u.email}
                   </td>
                   <td className="px-4 py-3">{u.role}</td>
                   <td className="px-4 py-3">{dateFmt.format(u.createdAt)}</td>
+                  <td className="px-4 py-3">
+                    {me.isSuperAdmin && u.id !== me.id ? (
+                      <ResetPasswordModal userId={u.id} label={u.name || u.email} />
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

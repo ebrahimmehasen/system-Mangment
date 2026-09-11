@@ -14,6 +14,7 @@ import { RatingControl } from "./RatingControl";
 import { EmployeePaymentModal } from "./EmployeePaymentModal";
 import { DeletePaymentButton } from "./DeletePaymentButton";
 import { CreateEmployeeLoginModal } from "./CreateEmployeeLoginModal";
+import { ResetPasswordModal } from "@/components/auth/ResetPasswordModal";
 
 type PayType = keyof typeof PAY_TYPE_LABELS;
 
@@ -29,7 +30,7 @@ export default async function EmployeeProfilePage({
     prisma.employee.findUnique({
       where: { id },
       include: {
-        user: { select: { email: true } },
+        user: { select: { id: true, email: true } },
         assignments: {
           orderBy: { assignedAt: "desc" },
           include: {
@@ -139,9 +140,10 @@ export default async function EmployeeProfilePage({
             <p className="mb-1 text-sm text-foreground-muted">
               للموظف حساب دخول فعّال.
             </p>
-            <p dir="ltr" className="text-sm text-foreground">
+            <p dir="ltr" className="mb-3 text-sm text-foreground">
               {employee.user.email}
             </p>
+            <ResetPasswordModal userId={employee.user.id} label={employee.name} />
           </>
         ) : (
           <>

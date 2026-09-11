@@ -27,6 +27,7 @@ export const AUDIT_ENTITIES: Record<string, string> = {
   company_account: "حساب الشركة",
   employee_payment: "دفعة موظف",
   employee_login: "حساب دخول موظف",
+  admin_password: "كلمة مرور مشرف",
 };
 
 export const actionLabel = (a: string) => AUDIT_ACTIONS[a] ?? a;

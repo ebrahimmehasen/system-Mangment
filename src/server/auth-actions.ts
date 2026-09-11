@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
+import { writeAuditLog } from "@/lib/audit";
 
 export interface ActionState {
   error?: string;
@@ -75,6 +76,62 @@ export async function changePasswordAction(
   }
 
   return { success: "تم تغيير كلمة المرور بنجاح." };
+}
+
+export interface ResetPasswordState {
+  error?: string;
+  success?: string;
+}
+
+/**
+ * Admin-privileged password reset for *someone else's* account — no current
+ * password required (unlike changePasswordAction, which is self-service).
+ * Permission rule (Phase 5 matrix): any admin may reset an employee's
+ * password; only the super admin may reset another admin's password.
+ */
+export async function resetUserPasswordAction(
+  targetUserId: string,
+  _prev: ResetPasswordState,
+  formData: FormData,
+): Promise<ResetPasswordState> {
+  const actingUser = await requireUser();
+
+  if (targetUserId === actingUser.id) {
+    return { error: 'استخدم نموذج "تغيير كلمة المرور" لتغيير كلمة مرورك أنت.' };
+  }
+
+  const newPassword = String(formData.get("newPassword") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+  if (newPassword.length < 8) {
+    return { error: "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل." };
+  }
+  if (newPassword !== confirmPassword) {
+    return { error: "كلمة المرور الجديدة وتأكيدها غير متطابقين." };
+  }
+
+  const target = await prisma.user.findUnique({ where: { id: targetUserId } });
+  if (!target) return { error: "المستخدم غير موجود." };
+
+  if (target.role === "admin" && !actingUser.isSuperAdmin) {
+    return { error: "فقط السوبر أدمن يقدر يغيّر كلمة مرور مشرف تاني." };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(targetUserId, {
+    password: newPassword,
+  });
+  if (error) {
+    return { error: `تعذّر تغيير كلمة المرور: ${error.message}` };
+  }
+
+  await writeAuditLog({
+    userId: actingUser.id,
+    action: "updated",
+    entity: target.role === "admin" ? "admin_password" : "employee_login",
+    entityId: targetUserId,
+  });
+
+  return { success: `تم تغيير كلمة مرور ${target.name ?? target.email}.` };
 }
 
 export async function signOutAction() {

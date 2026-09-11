@@ -51,9 +51,10 @@ export function computeAlerts(input: {
     remindAt: Date;
     doneAt: Date | null;
   }[];
+  announcements?: { id: string; title: string; createdAt: Date }[];
 }): Alert[] {
   const now = input.now ?? new Date();
-  const alerts: Alert[] = [];
+  const alerts: Alert[] = [...computeAnnouncementAlerts(input.announcements ?? [], "/announcements")];
 
   const deliverySoonCutoff = new Date(now.getTime() + DELIVERY_SOON_DAYS * 86400000);
   const milestoneSoonCutoff = new Date(now.getTime() + MILESTONE_SOON_DAYS * 86400000);
@@ -148,4 +149,26 @@ export function computeAlerts(input: {
   }
 
   return alerts.sort((a, b) => a.at.getTime() - b.at.getTime());
+}
+
+/**
+ * Announcement alerts, standalone from computeAlerts() — used both inside it
+ * (for the admin bell, href "/announcements") and on its own for the
+ * employee bell (href "/employee/announcements"). Kept separate so an
+ * employee's bell never has to go through the project/meeting/milestone/
+ * reminder computation above, which isn't scoped to "theirs only".
+ */
+export function computeAnnouncementAlerts(
+  announcements: { id: string; title: string; createdAt: Date }[],
+  href: string,
+): Alert[] {
+  return announcements
+    .map((a) => ({
+      key: `announcement:${a.id}`,
+      severity: "info" as AlertSeverity,
+      title: `إعلان: ${a.title}`,
+      href,
+      at: a.createdAt,
+    }))
+    .sort((a, b) => b.at.getTime() - a.at.getTime());
 }

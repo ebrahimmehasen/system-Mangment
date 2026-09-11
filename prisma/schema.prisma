@@ -76,6 +76,7 @@ model User {
   employeePaymentsCreated EmployeePayment[]     @relation("EmployeePaymentCreatedBy")
   companyAccountEntries   CompanyAccountEntry[] @relation("CompanyAccountCreatedBy")
   targetClientsCreated    TargetClient[]        @relation("TargetClientCreatedBy")
+  announcementsCreated    Announcement[]        @relation("AnnouncementCreatedBy")
 
   @@map("users")
 }
@@ -669,4 +670,27 @@ model TargetClientActivity {
   @@index([targetClientId])
   @@index([kind])
   @@map("target_client_activities")
+}
+
+// ═══════════════════ Phase 5.9: Announcements ═══════════════════
+//
+// A company-wide announcement, admin-only to create. It's surfaced two
+// ways: as a live, per-user-dismissible alert (same AlertDismissal
+// mechanism as delivery/meeting/milestone/reminder alerts — see
+// computeAlerts in src/lib/services/alerts.ts; there's no separate
+// Notification-table write, since that table isn't read by anything in
+// this app), and — when meetingAt is set — as a calendar event visible to
+// everyone on the admin /calendar page.
+
+model Announcement {
+  id        String    @id @default(uuid()) @db.Uuid
+  title     String
+  body      String?
+  meetingAt DateTime? @map("meeting_at")
+  createdBy String?   @map("created_by") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  creator User? @relation("AnnouncementCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@map("announcements")
 }

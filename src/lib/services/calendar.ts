@@ -58,7 +58,7 @@ export const WEEKDAY_LABELS = [
   "الجمعة",
 ];
 
-export type CalEventType = "meeting" | "milestone" | "reminder" | "delivery";
+export type CalEventType = "meeting" | "milestone" | "reminder" | "delivery" | "announcement";
 
 export interface CalEvent {
   id: string;
@@ -67,7 +67,7 @@ export interface CalEvent {
   time: string; // "HH:mm" or "" for all-day-ish (milestone/reminder date-only)
   title: string;
   href: string;
-  tone: "accent" | "warning" | "info" | "neutral";
+  tone: "accent" | "warning" | "info" | "neutral" | "success";
   done: boolean;
 }
 
@@ -155,6 +155,23 @@ export function deliveryToEvent(p: {
     done:
       !!p.actualDeliveryDate ||
       ["Completed", "Delivered", "Cancelled"].includes(p.status),
+  };
+}
+
+export function announcementToEvent(a: {
+  id: string;
+  title: string;
+  meetingAt: Date;
+}): CalEvent {
+  return {
+    id: `announcement-${a.id}`,
+    type: "announcement",
+    day: ymdInTz(a.meetingAt),
+    time: timeFmt.format(a.meetingAt),
+    title: `إعلان: ${a.title}`,
+    href: "/announcements",
+    tone: "success",
+    done: false,
   };
 }
 

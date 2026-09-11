@@ -30,6 +30,7 @@ export const AUDIT_ENTITIES: Record<string, string> = {
   admin_password: "كلمة مرور مشرف",
   target_client: "عميل مستهدف",
   target_client_activity: "نشاط عميل مستهدف",
+  announcement: "إعلان",
 };
 
 export const actionLabel = (a: string) => AUDIT_ACTIONS[a] ?? a;

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
+import { getEmployeeAnnouncementAlerts } from "@/lib/get-alerts";
 import { EmployeePortalHeader } from "@/components/layout/EmployeePortalHeader";
 
 export default async function EmployeePortalLayout({
@@ -18,9 +19,11 @@ export default async function EmployeePortalLayout({
   // it somehow happens.
   if (!employee) redirect("/employee-pending");
 
+  const alerts = await getEmployeeAnnouncementAlerts(user.id);
+
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <EmployeePortalHeader employeeName={employee.name} />
+      <EmployeePortalHeader employeeName={employee.name} alerts={alerts} />
       <main className="flex-1 overflow-x-hidden p-4 md:p-6">{children}</main>
     </div>
   );

@@ -5,15 +5,24 @@ import { usePathname } from "next/navigation";
 import { signOutAction } from "@/server/auth-actions";
 import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/cn";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+import type { Alert } from "@/lib/services/alerts";
 
 const LINKS = [
   { href: "/employee", label: "الرئيسية" },
   { href: "/employee/leads", label: "العملاء المستهدفون" },
   { href: "/employee/projects", label: "مشاريعي" },
   { href: "/employee/reminders", label: "التقويم والتذكيرات" },
+  { href: "/employee/announcements", label: "الإعلانات" },
 ];
 
-export function EmployeePortalHeader({ employeeName }: { employeeName: string }) {
+export function EmployeePortalHeader({
+  employeeName,
+  alerts,
+}: {
+  employeeName: string;
+  alerts: Alert[];
+}) {
   const pathname = usePathname();
 
   return (
@@ -44,6 +53,7 @@ export function EmployeePortalHeader({ employeeName }: { employeeName: string })
             );
           })}
         </nav>
+        <NotificationBell alerts={alerts} />
         <div className="hidden text-sm text-foreground-muted sm:block">{employeeName}</div>
         <form action={signOutAction}>
           <button

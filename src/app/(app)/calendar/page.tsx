@@ -13,6 +13,7 @@ import {
   milestoneToEvent,
   reminderToEvent,
   deliveryToEvent,
+  announcementToEvent,
   groupByDay,
   WEEKDAY_LABELS,
   type CalEvent,
@@ -24,6 +25,7 @@ const toneClasses: Record<CalEvent["tone"], string> = {
   warning: "bg-warning/15 text-warning",
   info: "bg-info/15 text-info",
   neutral: "bg-surface-2 text-foreground-muted",
+  success: "bg-success/15 text-success",
 };
 
 export default async function CalendarPage({
@@ -42,11 +44,11 @@ export default async function CalendarPage({
   const grid = calendarGrid(year, month);
   const { from, to } = gridUtcRange(grid);
   const activeTypes = new Set(
-    (sp.types ?? "meeting,milestone,reminder,delivery").split(","),
+    (sp.types ?? "meeting,milestone,reminder,delivery,announcement").split(","),
   );
   const projectId = sp.project || undefined;
 
-  const [meetings, milestones, reminders, deliveries, projects] = await Promise.all([
+  const [meetings, milestones, reminders, deliveries, announcements, projects] = await Promise.all([
     activeTypes.has("meeting")
       ? prisma.meeting.findMany({
           where: {
@@ -102,6 +104,12 @@ export default async function CalendarPage({
           },
         })
       : Promise.resolve([]),
+    activeTypes.has("announcement")
+      ? prisma.announcement.findMany({
+          where: { meetingAt: { gte: from, lte: to } },
+          select: { id: true, title: true, meetingAt: true },
+        })
+      : Promise.resolve([]),
     prisma.project.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 
@@ -116,6 +124,9 @@ export default async function CalendarPage({
       .map((p) =>
         deliveryToEvent({ ...p, expectedDeliveryDate: p.expectedDeliveryDate! }),
       ),
+    ...announcements
+      .filter((a) => a.meetingAt)
+      .map((a) => announcementToEvent({ ...a, meetingAt: a.meetingAt! })),
   ];
   const byDay = groupByDay(events);
 
@@ -232,7 +243,9 @@ export default async function CalendarPage({
                             ? "مرحلة"
                             : e.type === "delivery"
                               ? "تسليم"
-                              : "تذكير"}
+                              : e.type === "announcement"
+                                ? "إعلان"
+                                : "تذكير"}
                       </Badge>
                     </span>
                   </Link>

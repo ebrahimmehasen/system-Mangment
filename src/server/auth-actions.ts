@@ -142,6 +142,56 @@ export async function resetUserPasswordAction(
   return { success: `تم تغيير كلمة مرور ${target.name ?? target.email}.` };
 }
 
+/**
+ * Deletes an admin's account entirely (Supabase Auth user + public.users
+ * row) — super-admin only. Never yourself, and never the super admin
+ * account itself (there must always be exactly one).
+ */
+export async function deleteAdminAction(
+  targetUserId: string,
+): Promise<{ error?: string }> {
+  const actingUser = await requireUser();
+
+  if (!actingUser.isSuperAdmin) {
+    return { error: "بس السوبر أدمن يقدر يحذف حساب مشرف." };
+  }
+  if (targetUserId === actingUser.id) {
+    return { error: "متقدرش تحذف حسابك انت." };
+  }
+
+  const target = await prisma.user.findUnique({ where: { id: targetUserId } });
+  if (!target) return { error: "المستخدم غير موجود." };
+  if (target.role !== "admin") {
+    return { error: "الحساب ده مش مشرف." };
+  }
+  if (target.isSuperAdmin) {
+    return { error: "متقدرش تحذف حساب السوبر أدمن." };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.deleteUser(targetUserId);
+  if (error) {
+    return { error: `تعذّر حذف الحساب: ${error.message}` };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.user.deleteMany({ where: { id: targetUserId } });
+    await writeAuditLog(
+      {
+        userId: actingUser.id,
+        action: "deleted",
+        entity: "admin_account",
+        entityId: targetUserId,
+        oldValue: { name: target.name, email: target.email },
+      },
+      tx,
+    );
+  });
+
+  revalidatePath("/team");
+  return {};
+}
+
 export async function signOutAction() {
   const supabase = await createClient();
   await supabase.auth.signOut();

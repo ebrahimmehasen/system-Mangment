@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { ResetPasswordModal } from "@/components/auth/ResetPasswordModal";
+import { DeleteAdminButton } from "@/components/auth/DeleteAdminButton";
 import { AddAdminForm } from "./AddAdminForm";
 import { ChangePasswordForm } from "./ChangePasswordForm";
 
@@ -59,7 +60,10 @@ export default async function TeamPage() {
                   <td className="px-4 py-3">{dateFmt.format(u.createdAt)}</td>
                   <td className="px-4 py-3">
                     {me.isSuperAdmin && u.id !== me.id ? (
-                      <ResetPasswordModal userId={u.id} label={u.name || u.email} />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <ResetPasswordModal userId={u.id} label={u.name || u.email} />
+                        <DeleteAdminButton userId={u.id} label={u.name || u.email} />
+                      </div>
                     ) : (
                       "—"
                     )}

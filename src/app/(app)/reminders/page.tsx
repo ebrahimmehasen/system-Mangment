@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Pagination } from "@/components/ui/Pagination";
 import { formatDateTime } from "@/lib/datetime";
 import { ReminderFormModal } from "@/components/reminders/ReminderFormModal";
+import { getAssignableUsers } from "@/lib/services/assignees";
 import {
   DoneCheckbox,
   SnoozeMenu,
@@ -33,7 +34,7 @@ export default async function RemindersPage({
         ? { doneAt: null, remindAt: { lt: now } }
         : { doneAt: null, remindAt: { gte: now } };
 
-  const [total, reminders, clients, projects, meetings] = await Promise.all([
+  const [total, reminders, clients, projects, meetings, assignees] = await Promise.all([
     prisma.reminder.count({ where }),
     prisma.reminder.findMany({
       where,
@@ -45,6 +46,7 @@ export default async function RemindersPage({
         project: { select: { id: true, name: true } },
         meeting: { select: { id: true, title: true } },
         creator: { select: { name: true, email: true } },
+        assignedTo: { select: { name: true, email: true } },
       },
     }),
     prisma.client.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
@@ -57,6 +59,7 @@ export default async function RemindersPage({
       orderBy: { meetingAt: "asc" },
       select: { id: true, title: true },
     }),
+    getAssignableUsers(),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -70,7 +73,12 @@ export default async function RemindersPage({
           <h1 className="text-xl font-semibold">التذكيرات</h1>
           <p className="mt-1 text-sm text-foreground-muted">{total} تذكير</p>
         </div>
-        <ReminderFormModal clients={clients} projects={projects} meetings={meetings} />
+        <ReminderFormModal
+          clients={clients}
+          projects={projects}
+          meetings={meetings}
+          assignees={assignees}
+        />
       </div>
 
       <div className="flex gap-2">
@@ -101,13 +109,14 @@ export default async function RemindersPage({
                 <th className="px-4 py-3 font-medium">العنوان</th>
                 <th className="px-4 py-3 font-medium">مرتبط بـ</th>
                 <th className="px-4 py-3 font-medium">أنشأه</th>
+                <th className="px-4 py-3 font-medium">مخصص لـ</th>
                 <th className="px-4 py-3 font-medium">إجراءات</th>
               </tr>
             </thead>
             <tbody>
               {reminders.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-foreground-muted">
+                  <td colSpan={7} className="px-4 py-10 text-center text-foreground-muted">
                     {tab === "done"
                       ? "لا توجد تذكيرات منتهية."
                       : tab === "overdue"
@@ -147,6 +156,9 @@ export default async function RemindersPage({
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-foreground-muted">
                     {r.creator?.name || r.creator?.email || "—"}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-foreground-muted">
+                    {r.assignedTo?.name || r.assignedTo?.email || "—"}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">

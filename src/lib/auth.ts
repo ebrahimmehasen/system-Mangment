@@ -46,3 +46,16 @@ export async function requireUser(): Promise<CurrentUser> {
     isSuperAdmin: profile.isSuperAdmin,
   };
 }
+
+/**
+ * Like requireUser(), but also rejects a non-"admin" caller. Use this in
+ * Server Actions that are admin-only in the permissions matrix (managing
+ * target clients, employees, payroll, meetings, …) so an employee-portal
+ * account can't invoke them directly even though the action isn't rendered
+ * on any page they can reach.
+ */
+export async function requireAdmin(): Promise<CurrentUser> {
+  const user = await requireUser();
+  if (user.role !== "admin") redirect("/employee");
+  return user;
+}

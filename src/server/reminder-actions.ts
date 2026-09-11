@@ -21,6 +21,7 @@ function snapshot(r: {
   clientId: string | null;
   projectId: string | null;
   meetingId: string | null;
+  assignedToUserId?: string | null;
 }) {
   return {
     title: r.title,
@@ -30,6 +31,7 @@ function snapshot(r: {
     clientId: r.clientId,
     projectId: r.projectId,
     meetingId: r.meetingId,
+    assignedToUserId: r.assignedToUserId ?? null,
   };
 }
 
@@ -53,6 +55,9 @@ export async function createReminderAction(
         clientId: values.clientId || null,
         projectId: values.projectId || null,
         meetingId: values.meetingId || null,
+        // Only an admin may target a reminder at someone else; an employee's
+        // own reminders are implicitly "theirs" via createdBy.
+        assignedToUserId: user.role === "admin" ? values.assignedToUserId || null : null,
         createdBy: user.id,
       },
     });
@@ -73,6 +78,15 @@ export async function createReminderAction(
   return { ok: true };
 }
 
+/** Admins can act on any reminder; an employee only on one they created or are assigned to. */
+function canActOnReminder(
+  user: { id: string; role: string },
+  reminder: { createdBy: string | null; assignedToUserId: string | null },
+): boolean {
+  if (user.role === "admin") return true;
+  return reminder.createdBy === user.id || reminder.assignedToUserId === user.id;
+}
+
 export async function toggleReminderDoneAction(
   reminderId: string,
 ): Promise<{ error?: string }> {
@@ -80,6 +94,7 @@ export async function toggleReminderDoneAction(
 
   const existing = await prisma.reminder.findUnique({ where: { id: reminderId } });
   if (!existing) return { error: "التذكير غير موجود." };
+  if (!canActOnReminder(user, existing)) return { error: "غير مصرّح لك بتعديل هذا التذكير." };
 
   const nextDoneAt = existing.doneAt ? null : new Date();
 
@@ -118,6 +133,7 @@ export async function snoozeReminderAction(
 
   const existing = await prisma.reminder.findUnique({ where: { id: reminderId } });
   if (!existing) return { error: "التذكير غير موجود." };
+  if (!canActOnReminder(user, existing)) return { error: "غير مصرّح لك بتعديل هذا التذكير." };
 
   const base = existing.remindAt.getTime() > Date.now() ? existing.remindAt.getTime() : Date.now();
   const nextRemindAt = new Date(base + hours * 60 * 60 * 1000);
@@ -152,6 +168,7 @@ export async function deleteReminderAction(
 
   const existing = await prisma.reminder.findUnique({ where: { id: reminderId } });
   if (!existing) return { error: "التذكير غير موجود." };
+  if (!canActOnReminder(user, existing)) return { error: "غير مصرّح لك بحذف هذا التذكير." };
 
   await prisma.$transaction(async (tx) => {
     await tx.reminder.delete({ where: { id: reminderId } });

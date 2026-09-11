@@ -26,6 +26,7 @@ export interface MeetingFormValues {
   status: string;
   clientId: string;
   projectId: string;
+  assignedToUserId: string;
 }
 
 export interface MeetingParsed {
@@ -50,6 +51,7 @@ export function parseMeetingForm(formData: FormData): {
     status: String(formData.get("status") ?? "scheduled").trim(),
     clientId: String(formData.get("clientId") ?? "").trim(),
     projectId: String(formData.get("projectId") ?? "").trim(),
+    assignedToUserId: String(formData.get("assignedToUserId") ?? "").trim(),
   };
 
   const errors: Record<string, string> = {};

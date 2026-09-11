@@ -8,6 +8,7 @@ import { MeetingsTable } from "@/components/calendar/MeetingsTable";
 import { MeetingFormModal } from "@/components/calendar/MeetingFormModal";
 import { createMeetingAction } from "@/server/meeting-actions";
 import { MEETING_STATUS_LABELS } from "@/lib/services/meetings";
+import { getAssignableUsers } from "@/lib/services/assignees";
 
 const PAGE_SIZE = 20;
 
@@ -33,7 +34,7 @@ export default async function MeetingsPage({
     : { meetingAt: when === "past" ? { lt: now } : { gte: now } };
 
   const orderDir = status || when === "past" ? "desc" : "asc";
-  const [total, meetings, clients, projects] = await Promise.all([
+  const [total, meetings, clients, projects, assignees] = await Promise.all([
     prisma.meeting.count({ where }),
     prisma.meeting.findMany({
       where,
@@ -50,6 +51,7 @@ export default async function MeetingsPage({
       orderBy: { name: "asc" },
       select: { id: true, name: true, clientId: true },
     }),
+    getAssignableUsers(),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -84,6 +86,7 @@ export default async function MeetingsPage({
           action={createMeetingAction}
           clients={clients}
           projects={projects}
+          assignees={assignees}
           triggerLabel="+ اجتماع جديد"
         />
       </div>
@@ -101,6 +104,7 @@ export default async function MeetingsPage({
           meetings={meetings}
           clients={clients}
           projects={projects}
+          assignees={assignees}
           emptyText={when === "past" ? "لا توجد اجتماعات سابقة." : "لا توجد اجتماعات قادمة."}
         />
       </Card>

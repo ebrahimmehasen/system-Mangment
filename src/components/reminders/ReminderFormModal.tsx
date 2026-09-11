@@ -10,6 +10,7 @@ export function ReminderFormModal({
   clients,
   projects,
   meetings,
+  assignees = [],
   fixedClientId,
   fixedProjectId,
   fixedMeetingId,
@@ -19,6 +20,7 @@ export function ReminderFormModal({
   clients: { id: string; name: string }[];
   projects: { id: string; name: string; clientId: string }[];
   meetings: { id: string; title: string }[];
+  assignees?: { id: string; label: string }[];
   fixedClientId?: string;
   fixedProjectId?: string;
   fixedMeetingId?: string;
@@ -133,6 +135,22 @@ export function ReminderFormModal({
                 ))}
               </SelectField>
             </div>
+          )}
+
+          {assignees.length > 0 && (
+            <SelectField
+              id="r-assignee"
+              name="assignedToUserId"
+              label="مخصص لـ (يظهر في تقويمه الشخصي)"
+              defaultValue={v("assignedToUserId")}
+            >
+              <option value="">— بدون تخصيص —</option>
+              {assignees.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.label}
+                </option>
+              ))}
+            </SelectField>
           )}
 
           <TextAreaField id="r-note" name="note" label="ملاحظات" defaultValue={v("note")} />

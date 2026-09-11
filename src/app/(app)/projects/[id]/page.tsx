@@ -20,6 +20,7 @@ import { MeetingFormModal } from "@/components/calendar/MeetingFormModal";
 import { createMeetingAction } from "@/server/meeting-actions";
 import { MilestonesTimeline } from "@/components/timeline/MilestonesTimeline";
 import { ProjectTeamSection } from "@/components/team/ProjectTeamSection";
+import { getAssignableUsers } from "@/lib/services/assignees";
 
 const toDateInput = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "");
 
@@ -31,7 +32,7 @@ export default async function ProjectDetailsPage({
   await requireUser();
   const { id } = await params;
 
-  const [project, clients, statusRows, categories, methodRows, employees, users] = await Promise.all([
+  const [project, clients, statusRows, categories, methodRows, employees, users, assignees] = await Promise.all([
     prisma.project.findUnique({
       where: { id },
       include: {
@@ -77,6 +78,7 @@ export default async function ProjectDetailsPage({
       orderBy: { createdAt: "asc" },
       select: { id: true, name: true, email: true },
     }),
+    getAssignableUsers(),
   ]);
 
   if (!project) notFound();
@@ -380,6 +382,7 @@ export default async function ProjectDetailsPage({
             projects={[
               { id: project.id, name: project.name, clientId: project.clientId },
             ]}
+            assignees={assignees}
             fixedProjectId={project.id}
             triggerLabel="+ اجتماع"
             triggerVariant="secondary"
@@ -391,6 +394,7 @@ export default async function ProjectDetailsPage({
           projects={[
             { id: project.id, name: project.name, clientId: project.clientId },
           ]}
+          assignees={assignees}
           showContext={false}
           emptyText="لا توجد اجتماعات لهذا المشروع."
         />

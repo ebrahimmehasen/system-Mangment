@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/employee", label: "الرئيسية" },
   { href: "/employee/leads", label: "العملاء المستهدفون" },
   { href: "/employee/projects", label: "مشاريعي" },
+  { href: "/employee/reminders", label: "التقويم والتذكيرات" },
 ];
 
 export function EmployeePortalHeader({ employeeName }: { employeeName: string }) {

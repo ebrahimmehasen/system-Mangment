@@ -23,6 +23,7 @@ export interface MeetingRow {
   status: string;
   clientId: string | null;
   projectId: string | null;
+  assignedToUserId?: string | null;
   client: { id: string; name: string } | null;
   project: { id: string; name: string } | null;
 }
@@ -37,12 +38,14 @@ export function MeetingsTable({
   meetings,
   clients,
   projects,
+  assignees = [],
   showContext = true,
   emptyText = "لا توجد اجتماعات.",
 }: {
   meetings: MeetingRow[];
   clients: { id: string; name: string }[];
   projects: { id: string; name: string; clientId: string }[];
+  assignees?: { id: string; label: string }[];
   showContext?: boolean;
   emptyText?: string;
 }) {
@@ -116,6 +119,7 @@ export function MeetingsTable({
                     action={updateMeetingAction.bind(null, m.id)}
                     clients={clients}
                     projects={projects}
+                    assignees={assignees}
                     meeting={{
                       title: m.title,
                       description: m.description,
@@ -126,6 +130,7 @@ export function MeetingsTable({
                       status: m.status,
                       clientId: m.clientId,
                       projectId: m.projectId,
+                      assignedToUserId: m.assignedToUserId,
                     }}
                     triggerLabel="تعديل"
                     triggerVariant="secondary"

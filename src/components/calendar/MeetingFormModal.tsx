@@ -22,6 +22,7 @@ export interface MeetingDefaults {
   status?: string;
   clientId?: string | null;
   projectId?: string | null;
+  assignedToUserId?: string | null;
 }
 
 export function MeetingFormModal({
@@ -29,6 +30,7 @@ export function MeetingFormModal({
   action,
   clients,
   projects,
+  assignees = [],
   meeting,
   fixedClientId,
   fixedProjectId,
@@ -42,6 +44,7 @@ export function MeetingFormModal({
   ) => Promise<MeetingActionState>;
   clients: { id: string; name: string }[];
   projects: { id: string; name: string; clientId: string }[];
+  assignees?: { id: string; label: string }[];
   meeting?: MeetingDefaults;
   fixedClientId?: string;
   fixedProjectId?: string;
@@ -159,6 +162,22 @@ export function MeetingFormModal({
             label="المكان / الرابط"
             defaultValue={v("location")}
           />
+
+          {assignees.length > 0 && (
+            <SelectField
+              id="m-assignee"
+              name="assignedToUserId"
+              label="مخصص لـ (يظهر في تقويمه الشخصي)"
+              defaultValue={v("assignedToUserId")}
+            >
+              <option value="">— بدون تخصيص —</option>
+              {assignees.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.label}
+                </option>
+              ))}
+            </SelectField>
+          )}
 
           {fixedProjectId ? (
             <>

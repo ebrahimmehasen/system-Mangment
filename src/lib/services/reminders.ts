@@ -7,6 +7,7 @@ export interface ReminderFormValues {
   clientId: string;
   projectId: string;
   meetingId: string;
+  assignedToUserId: string;
 }
 
 export function parseReminderForm(formData: FormData): {
@@ -21,6 +22,7 @@ export function parseReminderForm(formData: FormData): {
     clientId: String(formData.get("clientId") ?? "").trim(),
     projectId: String(formData.get("projectId") ?? "").trim(),
     meetingId: String(formData.get("meetingId") ?? "").trim(),
+    assignedToUserId: String(formData.get("assignedToUserId") ?? "").trim(),
   };
 
   const errors: Record<string, string> = {};

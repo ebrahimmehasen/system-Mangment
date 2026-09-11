@@ -14,6 +14,7 @@ import { ProjectFormModal } from "../../projects/ProjectFormModal";
 import { MeetingsTable } from "@/components/calendar/MeetingsTable";
 import { MeetingFormModal } from "@/components/calendar/MeetingFormModal";
 import { createMeetingAction } from "@/server/meeting-actions";
+import { getAssignableUsers } from "@/lib/services/assignees";
 
 export default async function ClientProfilePage({
   params,
@@ -41,7 +42,7 @@ export default async function ClientProfilePage({
 
   if (!client) notFound();
 
-  const [statusRows, meetings] = await Promise.all([
+  const [statusRows, meetings, assignees] = await Promise.all([
     prisma.projectStatus.findMany({
       orderBy: { sortOrder: "asc" },
       select: { name: true },
@@ -54,6 +55,7 @@ export default async function ClientProfilePage({
         project: { select: { id: true, name: true } },
       },
     }),
+    getAssignableUsers(),
   ]);
   const statuses = statusRows.map((s) => s.name);
   const clientProjectOpts = client.projects.map((p) => ({
@@ -216,6 +218,7 @@ export default async function ClientProfilePage({
             action={createMeetingAction}
             clients={[{ id: client.id, name: client.name }]}
             projects={clientProjectOpts}
+            assignees={assignees}
             fixedClientId={client.id}
             triggerLabel="+ اجتماع"
             triggerVariant="secondary"
@@ -225,6 +228,7 @@ export default async function ClientProfilePage({
           meetings={meetings}
           clients={[{ id: client.id, name: client.name }]}
           projects={clientProjectOpts}
+          assignees={assignees}
           showContext={false}
           emptyText="لا توجد اجتماعات مع هذا العميل."
         />

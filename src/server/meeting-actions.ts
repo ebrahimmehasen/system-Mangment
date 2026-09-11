@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import {
   parseMeetingForm,
@@ -27,6 +27,7 @@ function snapshot(m: {
   status: string;
   clientId: string | null;
   projectId: string | null;
+  assignedToUserId?: string | null;
 }) {
   return {
     title: m.title,
@@ -38,6 +39,7 @@ function snapshot(m: {
     status: m.status,
     clientId: m.clientId,
     projectId: m.projectId,
+    assignedToUserId: m.assignedToUserId ?? null,
   };
 }
 
@@ -74,7 +76,7 @@ export async function createMeetingAction(
   _prev: MeetingActionState,
   formData: FormData,
 ): Promise<MeetingActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const { values, errors, parsed } = parseMeetingForm(formData);
 
   if (Object.keys(errors).length > 0) {
@@ -96,6 +98,7 @@ export async function createMeetingAction(
         status: parsed.status,
         clientId: links.clientId,
         projectId: links.projectId,
+        assignedToUserId: values.assignedToUserId || null,
         createdBy: user.id,
       },
     });
@@ -124,7 +127,7 @@ export async function updateMeetingAction(
   _prev: MeetingActionState,
   formData: FormData,
 ): Promise<MeetingActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const { values, errors, parsed } = parseMeetingForm(formData);
 
   const existing = await prisma.meeting.findUnique({ where: { id: meetingId } });
@@ -150,6 +153,7 @@ export async function updateMeetingAction(
         status: parsed.status,
         clientId: links.clientId,
         projectId: links.projectId,
+        assignedToUserId: values.assignedToUserId || null,
       },
     });
     await writeAuditLog(
@@ -177,7 +181,7 @@ export async function changeMeetingStatusAction(
   meetingId: string,
   status: string,
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   if (!(MEETING_STATUSES as readonly string[]).includes(status)) {
     return { error: "حالة غير صالحة." };
   }
@@ -216,7 +220,7 @@ export async function changeMeetingStatusAction(
 export async function deleteMeetingAction(
   meetingId: string,
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const meeting = await prisma.meeting.findUnique({ where: { id: meetingId } });
   if (!meeting) return { error: "الاجتماع غير موجود." };

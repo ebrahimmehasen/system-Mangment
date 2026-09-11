@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
-import { requireUser } from "@/lib/auth";
+import { requireUser, requireAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { serverEnv } from "@/lib/env";
 import {
@@ -48,7 +48,7 @@ export async function createTargetClientAction(
   _prev: TargetClientActionState,
   formData: FormData,
 ): Promise<TargetClientActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const { values, errors, parsed } = parseTargetClientForm(formData);
   if (Object.keys(errors).length > 0) return backWithErrors(errors, values);
 
@@ -85,7 +85,7 @@ export async function updateTargetClientAction(
   _prev: TargetClientActionState,
   formData: FormData,
 ): Promise<TargetClientActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const { values, errors, parsed } = parseTargetClientForm(formData);
   if (Object.keys(errors).length > 0) return backWithErrors(errors, values);
 
@@ -124,7 +124,7 @@ export async function updateTargetClientAction(
 export async function deleteTargetClientAction(
   targetClientId: string,
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const existing = await prisma.targetClient.findUnique({ where: { id: targetClientId } });
   if (!existing) return { error: "العميل المستهدف غير موجود." };
@@ -152,7 +152,7 @@ export async function setTargetClientHiddenAction(
   targetClientId: string,
   hidden: boolean,
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const existing = await prisma.targetClient.findUnique({ where: { id: targetClientId } });
   if (!existing) return { error: "العميل المستهدف غير موجود." };
@@ -182,7 +182,7 @@ export async function setTargetClientHiddenAction(
 export async function setTargetClientInactiveAction(
   targetClientId: string,
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const existing = await prisma.targetClient.findUnique({ where: { id: targetClientId } });
   if (!existing) return { error: "العميل المستهدف غير موجود." };
@@ -219,7 +219,7 @@ export async function setTargetClientInactiveAction(
 export async function unassignTargetClientAction(
   targetClientId: string,
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const existing = await prisma.targetClient.findUnique({ where: { id: targetClientId } });
   if (!existing) return { error: "العميل المستهدف غير موجود." };
@@ -411,7 +411,7 @@ export async function addTargetClientActivityAction(
 export async function deleteTargetClientActivityAction(
   activityId: string,
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const activity = await prisma.targetClientActivity.findUnique({ where: { id: activityId } });
   if (!activity) return { error: "النشاط غير موجود." };

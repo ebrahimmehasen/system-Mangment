@@ -46,27 +46,31 @@ enum ClientStatus {
 
 /// Mirrors Supabase auth.users. `id` equals auth.uid().
 model User {
-  id        String   @id @default(uuid()) @db.Uuid
-  email     String   @unique
-  name      String?
-  role      String   @default("admin")
-  createdAt DateTime @default(now()) @map("created_at")
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  name         String?
+  role         String   @default("admin")
+  isSuperAdmin Boolean  @default(false) @map("is_super_admin")
+  createdAt    DateTime @default(now()) @map("created_at")
 
-  clientsCreated  Client[]           @relation("ClientCreatedBy")
-  projectsCreated Project[]          @relation("ProjectCreatedBy")
-  filesUploaded   ProjectFile[]      @relation("FileUploadedBy")
-  transactions    Transaction[]      @relation("TransactionCreatedBy")
-  payments        Payment[]          @relation("PaymentCreatedBy")
-  expenses        Expense[]          @relation("ExpenseCreatedBy")
-  auditLogs       AuditLog[]
-  meetings        Meeting[]          @relation("MeetingCreatedBy")
-  milestones      ProjectMilestone[] @relation("MilestoneCreatedBy")
-  reminders       Reminder[]         @relation("ReminderCreatedBy")
-  notifications   Notification[]
-  alertDismissals AlertDismissal[]
-  reportPresets   ReportPreset[]
+  clientsCreated    Client[]           @relation("ClientCreatedBy")
+  projectsCreated   Project[]          @relation("ProjectCreatedBy")
+  filesUploaded     ProjectFile[]      @relation("FileUploadedBy")
+  transactions      Transaction[]      @relation("TransactionCreatedBy")
+  payments          Payment[]          @relation("PaymentCreatedBy")
+  expenses          Expense[]          @relation("ExpenseCreatedBy")
+  auditLogs         AuditLog[]
+  meetings          Meeting[]          @relation("MeetingCreatedBy")
+  meetingsAssigned  Meeting[]          @relation("MeetingAssignedTo")
+  milestones        ProjectMilestone[] @relation("MilestoneCreatedBy")
+  reminders         Reminder[]         @relation("ReminderCreatedBy")
+  remindersAssigned Reminder[]         @relation("ReminderAssignedTo")
+  notifications     Notification[]
+  alertDismissals   AlertDismissal[]
+  reportPresets     ReportPreset[]
 
   employeesCreated        Employee[]            @relation("EmployeeCreatedBy")
+  employeeProfile         Employee?             @relation("EmployeeUser")
   projectAssignments      ProjectAssignment[]   @relation("AssignmentUser")
   assignmentsCreated      ProjectAssignment[]   @relation("AssignmentCreatedBy")
   employeePaymentsCreated EmployeePayment[]     @relation("EmployeePaymentCreatedBy")
@@ -328,29 +332,32 @@ enum MeetingStatus {
 
 /// Meetings/calls, optionally tied to a client and/or project.
 model Meeting {
-  id              String        @id @default(uuid()) @db.Uuid
-  title           String
-  description     String?
-  meetingAt       DateTime      @map("meeting_at")
-  durationMinutes Int?          @map("duration_minutes")
-  location        String?
-  type            MeetingType   @default(call)
-  status          MeetingStatus @default(scheduled)
-  clientId        String?       @map("client_id") @db.Uuid
-  projectId       String?       @map("project_id") @db.Uuid
-  createdBy       String?       @map("created_by") @db.Uuid
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
+  id               String        @id @default(uuid()) @db.Uuid
+  title            String
+  description      String?
+  meetingAt        DateTime      @map("meeting_at")
+  durationMinutes  Int?          @map("duration_minutes")
+  location         String?
+  type             MeetingType   @default(call)
+  status           MeetingStatus @default(scheduled)
+  clientId         String?       @map("client_id") @db.Uuid
+  projectId        String?       @map("project_id") @db.Uuid
+  assignedToUserId String?       @map("assigned_to_user_id") @db.Uuid
+  createdBy        String?       @map("created_by") @db.Uuid
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
 
-  client    Client?    @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  project   Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  creator   User?      @relation("MeetingCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
-  reminders Reminder[]
+  client     Client?    @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  project    Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  creator    User?      @relation("MeetingCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  assignedTo User?      @relation("MeetingAssignedTo", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  reminders  Reminder[]
 
   @@index([meetingAt])
   @@index([projectId])
   @@index([clientId])
   @@index([status])
+  @@index([assignedToUserId])
   @@map("meetings")
 }
 
@@ -377,24 +384,27 @@ model ProjectMilestone {
 
 /// Manual reminders, optionally linked to a client / project / meeting.
 model Reminder {
-  id        String    @id @default(uuid()) @db.Uuid
-  title     String
-  note      String?
-  remindAt  DateTime  @map("remind_at")
-  doneAt    DateTime? @map("done_at")
-  clientId  String?   @map("client_id") @db.Uuid
-  projectId String?   @map("project_id") @db.Uuid
-  meetingId String?   @map("meeting_id") @db.Uuid
-  createdBy String?   @map("created_by") @db.Uuid
-  createdAt DateTime  @default(now()) @map("created_at")
+  id               String    @id @default(uuid()) @db.Uuid
+  title            String
+  note             String?
+  remindAt         DateTime  @map("remind_at")
+  doneAt           DateTime? @map("done_at")
+  clientId         String?   @map("client_id") @db.Uuid
+  projectId        String?   @map("project_id") @db.Uuid
+  meetingId        String?   @map("meeting_id") @db.Uuid
+  assignedToUserId String?   @map("assigned_to_user_id") @db.Uuid
+  createdBy        String?   @map("created_by") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at")
 
-  client  Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  meeting Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
-  creator User?    @relation("ReminderCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  client     Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  meeting    Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  creator    User?    @relation("ReminderCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  assignedTo User?    @relation("ReminderAssignedTo", fields: [assignedToUserId], references: [id], onDelete: SetNull)
 
   @@index([remindAt])
   @@index([doneAt])
+  @@index([assignedToUserId])
   @@map("reminders")
 }
 
@@ -450,10 +460,15 @@ model ReportPreset {
 
 // ═══════════════════ Phase 4: Employees / Payroll / Company account ═══════════════════
 //
-// Employees are admin-managed records (no login — that's `User`). Every
-// EmployeePayment and CompanyAccountEntry hangs off the central `Transaction`
-// ledger 1:1, exactly like Payment / Expense. Decision: employee money always
-// comes from a project's budget (recorded as an Expense of type `project`).
+// Employees are admin-managed records. As of Phase 5 an Employee MAY have a
+// linked `User` login (Employee.userId) — an employee portal account created
+// by an admin, reusing the same Supabase admin.auth.admin.createUser flow as
+// createAdminAction, with role "employee". Employee.userId is optional: an
+// Employee with no login is still a valid record (CV/payroll/rating only).
+// Every EmployeePayment and CompanyAccountEntry hangs off the central
+// `Transaction` ledger 1:1, exactly like Payment / Expense. Decision: employee
+// money always comes from a project's budget (recorded as an Expense of type
+// `project`).
 
 enum EmployeeStatus {
   active
@@ -491,11 +506,13 @@ model Employee {
   rating        Int?           @default(0) // 1..10, clamped in the app
   status        EmployeeStatus @default(active)
   notes         String?
+  userId        String?        @unique @map("user_id") @db.Uuid
   createdBy     String?        @map("created_by") @db.Uuid
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
 
   creator     User?               @relation("EmployeeCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  user        User?               @relation("EmployeeUser", fields: [userId], references: [id], onDelete: SetNull)
   assignments ProjectAssignment[]
   payments    EmployeePayment[]
 

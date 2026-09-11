@@ -10,10 +10,8 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const user = await requireUser();
-  // Employee-portal accounts (Phase 5) don't get the admin panel — the
-  // dedicated employee portal isn't built yet, so send them somewhere inert
-  // instead of leaving this gate open to full admin access in the meantime.
-  if (user.role !== "admin") redirect("/employee-pending");
+  // Employee-portal accounts (Phase 5) don't get the admin panel.
+  if (user.role !== "admin") redirect("/employee");
   const alerts = await getActiveAlerts(user.id);
 
   return (

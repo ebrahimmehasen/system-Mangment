@@ -8,7 +8,7 @@ import { TARGET_CLIENT_STATUS_LABELS } from "@/lib/services/target-clients";
 import { updateTargetClientAction } from "@/server/target-client-actions";
 import { TargetClientFormModal } from "../TargetClientFormModal";
 import { TargetClientAdminActions } from "./TargetClientAdminActions";
-import { TargetClientActivityForm } from "./TargetClientActivityForm";
+import { TargetClientActivityForm } from "@/components/target-clients/ActivityForm";
 import { DeleteActivityButton } from "./DeleteActivityButton";
 
 const STATUS_TONE: Record<string, "neutral" | "success" | "warning" | "danger" | "accent"> = {

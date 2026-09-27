@@ -60,10 +60,18 @@ export function validateUploadedFile(
   return { ok: true, matchedExt: type.ext, matchedMime: type.mime };
 }
 
+/**
+ * Supabase Storage rejects non-ASCII object keys outright ("Invalid key" /
+ * 400 InvalidKey) — so unlike a display filename, the storage key can't keep
+ * Arabic (or any non-ASCII) characters. Collapse anything outside
+ * safe ASCII to "_"; the original filename is preserved separately in the
+ * DB (`fileName` / `cvFileName`) for display and download, this is only
+ * ever used to build the opaque storage key.
+ */
 const safeName = (fileName: string) =>
   fileName
     .replace(/^.*[\\/]/, "")
-    .replace(/[^\p{L}\p{N}._-]+/gu, "_")
+    .replace(/[^a-zA-Z0-9._-]+/g, "_")
     .slice(-120);
 
 /** `projects/{projectId}/{uuid}-{safeName}` */

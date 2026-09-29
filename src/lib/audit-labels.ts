@@ -33,6 +33,8 @@ export const AUDIT_ENTITIES: Record<string, string> = {
   announcement: "إعلان",
   admin_account: "حساب مشرف",
   client_submission: "طلب عميل جديد",
+  task: "مهمة",
+  task_forward_request: "طلب فروردة مهمة",
 };
 
 export const actionLabel = (a: string) => AUDIT_ACTIONS[a] ?? a;

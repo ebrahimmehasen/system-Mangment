@@ -12,6 +12,7 @@ import {
   meetingToEvent,
   reminderToEvent,
   announcementToEvent,
+  taskToEvent,
   groupByDay,
   WEEKDAY_LABELS,
   type CalEvent,
@@ -32,6 +33,7 @@ const TYPE_LABELS: Record<CalEvent["type"], string> = {
   reminder: "تذكير",
   delivery: "تسليم",
   announcement: "إعلان",
+  task: "مهمة",
 };
 
 export default async function EmployeeCalendarPage({
@@ -45,7 +47,7 @@ export default async function EmployeeCalendarPage({
   const grid = calendarGrid(year, month);
   const { from, to } = gridUtcRange(grid);
 
-  const [meetings, reminders, announcements] = await Promise.all([
+  const [meetings, reminders, announcements, tasks] = await Promise.all([
     prisma.meeting.findMany({
       where: {
         meetingAt: { gte: from, lte: to },
@@ -71,6 +73,13 @@ export default async function EmployeeCalendarPage({
       where: { meetingAt: { gte: from, lte: to } },
       select: { id: true, title: true, meetingAt: true },
     }),
+    prisma.task.findMany({
+      where: {
+        dueDate: { gte: from, lte: to },
+        assignees: { some: { userId: user.id } },
+      },
+      select: { id: true, title: true, dueDate: true, status: true },
+    }),
   ]);
 
   const events: CalEvent[] = [
@@ -82,6 +91,9 @@ export default async function EmployeeCalendarPage({
         announcementToEvent({ ...a, meetingAt: a.meetingAt! }),
       )
       .map((e) => ({ ...e, href: "/employee/announcements" })),
+    ...tasks
+      .filter((t) => t.dueDate)
+      .map((t) => taskToEvent({ ...t, dueDate: t.dueDate!, href: "/employee/tasks" })),
   ];
   const byDay = groupByDay(events);
 

@@ -17,6 +17,7 @@ const NOT_ACTIONABLE = [...DONE_STATUSES, "Cancelled"];
 const DELIVERY_SOON_DAYS = 3;
 const MILESTONE_SOON_DAYS = 2;
 const MEETING_SOON_HOURS = 24;
+const TASK_SOON_DAYS = 2;
 
 export function computeAlerts(input: {
   now?: Date;
@@ -52,9 +53,13 @@ export function computeAlerts(input: {
     doneAt: Date | null;
   }[];
   announcements?: { id: string; title: string; createdAt: Date }[];
+  tasks?: { id: string; title: string; dueDate: Date | null; status: string }[];
 }): Alert[] {
   const now = input.now ?? new Date();
-  const alerts: Alert[] = [...computeAnnouncementAlerts(input.announcements ?? [], "/announcements")];
+  const alerts: Alert[] = [
+    ...computeAnnouncementAlerts(input.announcements ?? [], "/announcements"),
+    ...computeTaskAlerts(input.tasks ?? [], "/tasks", now),
+  ];
 
   const deliverySoonCutoff = new Date(now.getTime() + DELIVERY_SOON_DAYS * 86400000);
   const milestoneSoonCutoff = new Date(now.getTime() + MILESTONE_SOON_DAYS * 86400000);
@@ -158,6 +163,42 @@ export function computeAlerts(input: {
  * employee's bell never has to go through the project/meeting/milestone/
  * reminder computation above, which isn't scoped to "theirs only".
  */
+/**
+ * Task due-soon/overdue alerts, standalone like computeAnnouncementAlerts —
+ * folded into computeAlerts() for the admin bell (href "/tasks", company-
+ * wide) and used on its own, pre-scoped to "assigned to me", for the
+ * employee bell.
+ */
+export function computeTaskAlerts(
+  tasks: { id: string; title: string; dueDate: Date | null; status: string }[],
+  href: string,
+  now: Date = new Date(),
+): Alert[] {
+  const soonCutoff = new Date(now.getTime() + TASK_SOON_DAYS * 86400000);
+  const alerts: Alert[] = [];
+  for (const t of tasks) {
+    if (t.status === "done" || !t.dueDate) continue;
+    if (t.dueDate.getTime() < now.getTime()) {
+      alerts.push({
+        key: `task-overdue:${t.id}`,
+        severity: "danger",
+        title: `مهمة "${t.title}" متأخرة`,
+        href,
+        at: t.dueDate,
+      });
+    } else if (t.dueDate.getTime() <= soonCutoff.getTime()) {
+      alerts.push({
+        key: `task-soon:${t.id}`,
+        severity: "warning",
+        title: `مهمة "${t.title}" مستحقة خلال ${TASK_SOON_DAYS} يومين`,
+        href,
+        at: t.dueDate,
+      });
+    }
+  }
+  return alerts;
+}
+
 export function computeAnnouncementAlerts(
   announcements: { id: string; title: string; createdAt: Date }[],
   href: string,

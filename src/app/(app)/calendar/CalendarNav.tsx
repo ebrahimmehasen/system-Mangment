@@ -10,6 +10,7 @@ const TYPES: { key: string; label: string }[] = [
   { key: "reminder", label: "تذكيرات" },
   { key: "delivery", label: "تسليم المشاريع" },
   { key: "announcement", label: "الإعلانات" },
+  { key: "task", label: "المهام" },
 ];
 
 export function CalendarNav({
@@ -25,7 +26,7 @@ export function CalendarNav({
   const params = useSearchParams();
 
   const activeTypes = new Set(
-    (params.get("types") ?? "meeting,milestone,reminder,delivery,announcement").split(","),
+    (params.get("types") ?? "meeting,milestone,reminder,delivery,announcement,task").split(","),
   );
 
   function go(mutate: (p: URLSearchParams) => void) {

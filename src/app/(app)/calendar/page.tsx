@@ -14,6 +14,7 @@ import {
   reminderToEvent,
   deliveryToEvent,
   announcementToEvent,
+  taskToEvent,
   groupByDay,
   WEEKDAY_LABELS,
   type CalEvent,
@@ -44,11 +45,11 @@ export default async function CalendarPage({
   const grid = calendarGrid(year, month);
   const { from, to } = gridUtcRange(grid);
   const activeTypes = new Set(
-    (sp.types ?? "meeting,milestone,reminder,delivery,announcement").split(","),
+    (sp.types ?? "meeting,milestone,reminder,delivery,announcement,task").split(","),
   );
   const projectId = sp.project || undefined;
 
-  const [meetings, milestones, reminders, deliveries, announcements, projects] = await Promise.all([
+  const [meetings, milestones, reminders, deliveries, announcements, tasks, projects] = await Promise.all([
     activeTypes.has("meeting")
       ? prisma.meeting.findMany({
           where: {
@@ -110,6 +111,15 @@ export default async function CalendarPage({
           select: { id: true, title: true, meetingAt: true },
         })
       : Promise.resolve([]),
+    activeTypes.has("task")
+      ? prisma.task.findMany({
+          where: {
+            dueDate: { gte: from, lte: to },
+            ...(projectId ? { projectId } : {}),
+          },
+          select: { id: true, title: true, dueDate: true, status: true },
+        })
+      : Promise.resolve([]),
     prisma.project.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 
@@ -127,6 +137,9 @@ export default async function CalendarPage({
     ...announcements
       .filter((a) => a.meetingAt)
       .map((a) => announcementToEvent({ ...a, meetingAt: a.meetingAt! })),
+    ...tasks
+      .filter((t) => t.dueDate)
+      .map((t) => taskToEvent({ ...t, dueDate: t.dueDate! })),
   ];
   const byDay = groupByDay(events);
 
@@ -245,7 +258,9 @@ export default async function CalendarPage({
                               ? "تسليم"
                               : e.type === "announcement"
                                 ? "إعلان"
-                                : "تذكير"}
+                                : e.type === "task"
+                                  ? "مهمة"
+                                  : "تذكير"}
                       </Badge>
                     </span>
                   </Link>

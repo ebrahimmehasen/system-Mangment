@@ -58,7 +58,7 @@ export const WEEKDAY_LABELS = [
   "الجمعة",
 ];
 
-export type CalEventType = "meeting" | "milestone" | "reminder" | "delivery" | "announcement";
+export type CalEventType = "meeting" | "milestone" | "reminder" | "delivery" | "announcement" | "task";
 
 export interface CalEvent {
   id: string;
@@ -172,6 +172,25 @@ export function announcementToEvent(a: {
     href: "/announcements",
     tone: "success",
     done: false,
+  };
+}
+
+export function taskToEvent(t: {
+  id: string;
+  title: string;
+  dueDate: Date;
+  status: string;
+  href?: string;
+}): CalEvent {
+  return {
+    id: `task-${t.id}`,
+    type: "task",
+    day: ymdInTz(t.dueDate),
+    time: timeFmt.format(t.dueDate),
+    title: t.title,
+    href: t.href ?? "/tasks",
+    tone: "warning",
+    done: t.status === "done",
   };
 }
 

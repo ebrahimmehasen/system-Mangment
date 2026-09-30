@@ -66,6 +66,10 @@ export function bucketizeTasks<T extends TaskBucketInput>(
   todayYmd: string,
   rangeStartYmd: string,
   rangeEndYmd: string,
+  /** Board mode: keep every day in range as its own column, even with 0 tasks
+   * (a Todoist-style board needs an empty column to still show "+ add"). The
+   * flowing-list mode (default) omits empty days instead. */
+  includeEmptyDays = false,
 ): { overdue: T[]; noDate: T[]; days: { ymd: string; tasks: T[] }[] } {
   const overdue: T[] = [];
   const noDate: T[] = [];
@@ -97,7 +101,8 @@ export function bucketizeTasks<T extends TaskBucketInput>(
   let cursor = rangeStartYmd;
   while (cursor <= rangeEndYmd) {
     const list = byDay.get(cursor);
-    if (list && list.length > 0) days.push({ ymd: cursor, tasks: sortDayTasks(list) });
+    if (includeEmptyDays) days.push({ ymd: cursor, tasks: list ? sortDayTasks(list) : [] });
+    else if (list && list.length > 0) days.push({ ymd: cursor, tasks: sortDayTasks(list) });
     cursor = shiftYmd(cursor, 1);
   }
 

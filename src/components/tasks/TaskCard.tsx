@@ -2,7 +2,6 @@
 
 import { useState, useTransition, type ReactNode } from "react";
 import { Badge } from "@/components/ui/Badge";
-import { formatTime } from "@/lib/datetime";
 import { postponementOpacityClass } from "@/lib/services/tasks";
 import { getTaskDetailAction, type TaskDetail } from "@/server/task-actions";
 import { TaskCompletionCircle } from "./TaskCompletionCircle";
@@ -45,39 +44,48 @@ export function TaskCard({ task, actions }: { task: TaskCardData; actions?: Reac
         tabIndex={0}
         onClick={openDetail}
         onKeyDown={(e) => e.key === "Enter" && openDetail()}
-        className={`flex cursor-pointer items-start gap-3 rounded-md border border-border bg-surface-2 p-3 transition-colors hover:bg-surface ${postponementOpacityClass(task.postponementCount)} ${done ? "bg-surface" : ""}`}
+        className={`flex cursor-pointer flex-col gap-1.5 rounded-lg border border-border bg-surface-2 p-2.5 transition-colors hover:border-accent/40 hover:bg-surface ${postponementOpacityClass(task.postponementCount)} ${done ? "bg-surface" : ""}`}
       >
-        <div onClick={(e) => e.stopPropagation()}>
-          <TaskCompletionCircle taskId={task.id} done={done} />
+        <div className="flex items-start gap-2">
+          <div onClick={(e) => e.stopPropagation()} className="mt-0.5">
+            <TaskCompletionCircle taskId={task.id} done={done} />
+          </div>
+          <span className={`min-w-0 flex-1 text-sm ${done ? "text-foreground-muted line-through" : "text-foreground"}`}>
+            {task.title}
+          </span>
         </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`text-sm ${done ? "text-foreground-muted line-through" : "text-foreground"}`}>
-              {task.title}
-            </span>
-            {task.dueDate && (
-              <span className="text-xs text-foreground-muted">{formatTime(task.dueDate)}</span>
+        {task.description && (
+          <p className="truncate pr-7 text-xs text-foreground-muted">{task.description}</p>
+        )}
+
+        {(task.project || task.assignees.length > 0 || task.postponementCount > 0) && (
+          <div className="flex flex-wrap items-center gap-1.5 pr-7 text-xs text-foreground-muted">
+            {task.project && (
+              <span className="text-accent">#{task.project.name}</span>
             )}
-            {task.postponementCount > 0 && (
-              <Badge tone="warning">تم التأجيل {task.postponementCount} مرة</Badge>
-            )}
-          </div>
-          {task.description && (
-            <p className="mt-0.5 truncate text-xs text-foreground-muted">{task.description}</p>
-          )}
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-foreground-muted">
-            {task.project && <span>{task.project.name}</span>}
-            {task.assignees.length > 0 && (
-              <span>
-                {task.assignees.map((a) => a.name || a.email).join("، ")}
+            {task.assignees.map((a) => (
+              <span
+                key={a.id}
+                className="inline-flex items-center gap-1 rounded-full bg-surface px-1.5 py-0.5"
+              >
+                <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-accent/20 text-[9px] text-accent">
+                  {(a.name || a.email).charAt(0)}
+                </span>
+                {a.name || a.email}
               </span>
+            ))}
+            {task.postponementCount > 0 && (
+              <Badge tone="warning">مؤجلة {task.postponementCount} مرة</Badge>
             )}
           </div>
-        </div>
+        )}
 
         {actions && (
-          <div onClick={(e) => e.stopPropagation()} className="flex shrink-0 items-center gap-2">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="flex flex-wrap items-center gap-2 border-t border-border pt-1.5 pr-7"
+          >
             {actions}
           </div>
         )}

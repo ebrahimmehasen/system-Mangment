@@ -63,3 +63,21 @@ const dayLabelFmt = new Intl.DateTimeFormat("ar-EG", {
 export function formatDayLabel(ymd: string): string {
   return dayLabelFmt.format(new Date(`${ymd}T12:00:00Z`));
 }
+
+const shortDayFmt = new Intl.DateTimeFormat("ar-EG", {
+  timeZone: APP_TZ,
+  day: "numeric",
+  month: "long",
+});
+const weekdayFmt = new Intl.DateTimeFormat("ar-EG", { timeZone: APP_TZ, weekday: "long" });
+
+/** Board column header: "اليوم" / "غداً" / weekday name, plus "day month". */
+export function formatColumnHeader(ymd: string, todayYmd: string): { relative: string; date: string } {
+  const tomorrowYmd = new Date(`${todayYmd}T12:00:00Z`);
+  tomorrowYmd.setUTCDate(tomorrowYmd.getUTCDate() + 1);
+  const tomorrow = tomorrowYmd.toISOString().slice(0, 10);
+
+  const d = new Date(`${ymd}T12:00:00Z`);
+  const relative = ymd === todayYmd ? "اليوم" : ymd === tomorrow ? "غداً" : weekdayFmt.format(d);
+  return { relative, date: shortDayFmt.format(d) };
+}

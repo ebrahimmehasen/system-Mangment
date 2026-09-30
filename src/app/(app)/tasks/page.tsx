@@ -2,12 +2,13 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/Card";
-import { ymdInTz, formatDayLabel, zonedInputToUtc } from "@/lib/datetime";
+import { ymdInTz, zonedInputToUtc } from "@/lib/datetime";
 import { bucketizeTasks, shiftYmd } from "@/lib/services/tasks";
 import { getAssignableUsers } from "@/lib/services/assignees";
 import { rolloverOverdueTasks } from "@/lib/services/task-rollover";
 import { createTaskAction, updateTaskAction } from "@/server/task-actions";
 import { TaskCard } from "@/components/tasks/TaskCard";
+import { TaskBoard } from "@/components/tasks/TaskBoard";
 import { TaskDateNav } from "@/components/tasks/TaskDateNav";
 import { DeleteTaskButton } from "@/components/tasks/DeleteTaskButton";
 import { TaskFormModal } from "./TaskFormModal";
@@ -73,7 +74,7 @@ export default async function TasksPage({
     getAssignableUsers(),
   ]);
 
-  const { overdue, noDate, days } = bucketizeTasks(tasks, today, from, rangeEnd);
+  const { overdue, noDate, days } = bucketizeTasks(tasks, today, from, rangeEnd, true);
 
   const filterHref = (patch: Record<string, string | undefined>) => {
     const params = new URLSearchParams();
@@ -138,7 +139,7 @@ export default async function TasksPage({
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">المهام</h1>
+          <h1 className="text-xl font-semibold">المهام القادمة</h1>
           <p className="mt-1 text-sm text-foreground-muted">{tasks.length} مهمة في النطاق الحالي</p>
         </div>
         <TaskFormModal
@@ -201,35 +202,7 @@ export default async function TasksPage({
         </Card>
       )}
 
-      {overdue.length > 0 && (
-        <Card>
-          <h2 className="mb-3 text-base font-semibold text-danger">متأخرة ({overdue.length})</h2>
-          <div className="flex flex-col gap-2">{overdue.map(renderTask)}</div>
-        </Card>
-      )}
-
-      {noDate.length > 0 && (
-        <Card>
-          <h2 className="mb-3 text-base font-semibold">بدون موعد ({noDate.length})</h2>
-          <div className="flex flex-col gap-2">{noDate.map(renderTask)}</div>
-        </Card>
-      )}
-
-      {days.length === 0 && overdue.length === 0 && noDate.length === 0 && (
-        <Card>
-          <p className="text-center text-sm text-foreground-muted">لا توجد مهام في النطاق الحالي.</p>
-        </Card>
-      )}
-
-      {days.map((day) => (
-        <div key={day.ymd}>
-          <div className="mb-2 flex items-baseline gap-2">
-            <h2 className="text-base font-semibold">{formatDayLabel(day.ymd)}</h2>
-            <span className="text-xs text-foreground-muted">{day.tasks.length} مهمة</span>
-          </div>
-          <div className="flex flex-col gap-2">{day.tasks.map(renderTask)}</div>
-        </div>
-      ))}
+      <TaskBoard overdue={overdue} noDate={noDate} days={days} todayYmd={today} renderTask={renderTask} />
     </div>
   );
 }

@@ -12,7 +12,10 @@ type AuditAction =
   | "file_deleted"
   | "payment_created"
   | "expense_created"
-  | "expense_deleted";
+  | "expense_deleted"
+  | "postponed"
+  | "completed"
+  | "reopened";
 
 interface AuditInput {
   userId: string | null;

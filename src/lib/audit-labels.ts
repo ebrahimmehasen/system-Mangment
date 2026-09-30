@@ -10,6 +10,9 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   payment_created: "تسجيل دفعة",
   expense_created: "تسجيل مصروف",
   expense_deleted: "حذف مصروف",
+  postponed: "تأجيل تلقائي",
+  completed: "تمت",
+  reopened: "إعادة فتح",
 };
 
 export const AUDIT_ENTITIES: Record<string, string> = {

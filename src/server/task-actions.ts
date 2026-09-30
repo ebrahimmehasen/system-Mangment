@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { requireUser, requireAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { parseTaskForm, TASK_STATUSES, type TaskStatus } from "@/lib/services/tasks";
+import { actionLabel } from "@/lib/audit-labels";
 
 export interface TaskActionState {
   error?: string;
@@ -103,12 +104,21 @@ export async function updateTaskStatusAction(
   }
   if (task.status === status) return {};
 
+  const becameDone = status === "done" && task.status !== "done";
+  const reopened = status !== "done" && task.status === "done";
+
   await prisma.$transaction(async (tx) => {
-    await tx.task.update({ where: { id: taskId }, data: { status: status as TaskStatus } });
+    await tx.task.update({
+      where: { id: taskId },
+      data: {
+        status: status as TaskStatus,
+        completedAt: becameDone ? new Date() : reopened ? null : undefined,
+      },
+    });
     await writeAuditLog(
       {
         userId: user.id,
-        action: "status_changed",
+        action: becameDone ? "completed" : reopened ? "reopened" : "status_changed",
         entity: "task",
         entityId: taskId,
         oldValue: { status: task.status },
@@ -120,6 +130,13 @@ export async function updateTaskStatusAction(
 
   revalidateTaskPaths();
   return {};
+}
+
+/** Toggle helper for the completion circle: done <-> todo. */
+export async function toggleTaskCompleteAction(taskId: string): Promise<{ error?: string }> {
+  const task = await prisma.task.findUnique({ where: { id: taskId }, select: { status: true } });
+  if (!task) return { error: "المهمة غير موجودة." };
+  return updateTaskStatusAction(taskId, task.status === "done" ? "todo" : "done");
 }
 
 /** Admin-only full edit — title/description/due date/project/assignees. */
@@ -325,6 +342,80 @@ export async function approveForwardRequestAction(
 
   revalidateTaskPaths();
   return {};
+}
+
+export interface TaskDetail {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  dueDate: string | null;
+  completedAt: string | null;
+  postponementCount: number;
+  createdAt: string;
+  project: { id: string; name: string } | null;
+  creator: { name: string | null; email: string } | null;
+  assignees: { id: string; name: string | null; email: string; role: string }[];
+  activity: {
+    id: string;
+    label: string;
+    at: string;
+    oldValue: unknown;
+    newValue: unknown;
+  }[];
+}
+
+/** Full task detail + activity history, for the details drawer. Admin sees any; a non-admin only a task they're assigned to. */
+export async function getTaskDetailAction(taskId: string): Promise<{ error?: string; task?: TaskDetail }> {
+  const user = await requireUser();
+
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: {
+      project: { select: { id: true, name: true } },
+      creator: { select: { name: true, email: true } },
+      assignees: { include: { user: { select: { id: true, name: true, email: true, role: true } } } },
+    },
+  });
+  if (!task) return { error: "المهمة غير موجودة." };
+
+  const isAssignee = task.assignees.some((a) => a.userId === user.id);
+  if (user.role !== "admin" && !isAssignee) {
+    return { error: "مش مسموح تشوف تفاصيل المهمة دي." };
+  }
+
+  const logs = await prisma.auditLog.findMany({
+    where: { entity: "task", entityId: taskId },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return {
+    task: {
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      status: task.status,
+      dueDate: task.dueDate?.toISOString() ?? null,
+      completedAt: task.completedAt?.toISOString() ?? null,
+      postponementCount: task.postponementCount,
+      createdAt: task.createdAt.toISOString(),
+      project: task.project,
+      creator: task.creator,
+      assignees: task.assignees.map((a) => ({
+        id: a.user.id,
+        name: a.user.name,
+        email: a.user.email,
+        role: a.user.role,
+      })),
+      activity: logs.map((l) => ({
+        id: l.id,
+        label: actionLabel(l.action),
+        at: l.createdAt.toISOString(),
+        oldValue: l.oldValue,
+        newValue: l.newValue,
+      })),
+    },
+  };
 }
 
 /** Admin-only. Rejects a forward request — the task stays exactly as it was. */

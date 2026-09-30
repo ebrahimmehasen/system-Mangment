@@ -51,3 +51,15 @@ export const formatTime = (d: Date) => timeFmt.format(d);
 export function ymdInTz(d: Date, tz: string = APP_TZ): string {
   return d.toLocaleString("sv-SE", { timeZone: tz }).slice(0, 10);
 }
+
+const dayLabelFmt = new Intl.DateTimeFormat("ar-EG", {
+  timeZone: APP_TZ,
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+});
+
+/** "YYYY-MM-DD" -> "الأربعاء 30 سبتمبر" (app timezone-safe: parsed as Cairo noon, not UTC midnight). */
+export function formatDayLabel(ymd: string): string {
+  return dayLabelFmt.format(new Date(`${ymd}T12:00:00Z`));
+}

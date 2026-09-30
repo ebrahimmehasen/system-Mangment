@@ -6,6 +6,8 @@ import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
 import { formatEgp } from "@/lib/money";
 import { computeDashboard } from "@/lib/services/dashboard";
+import { computeTaskDashboardStats } from "@/lib/services/tasks";
+import { ymdInTz } from "@/lib/datetime";
 import { buildActivityFeed } from "@/lib/services/activity";
 import { getChartData } from "@/lib/reports/charts";
 import { AgendaWidget } from "@/components/dashboard/AgendaWidget";
@@ -72,6 +74,25 @@ export default async function DashboardPage() {
     }),
     prisma.client.findMany({ orderBy: { createdAt: "desc" }, take: 12 }),
   ]);
+
+  const taskRows = await prisma.task.findMany({
+    select: {
+      id: true,
+      status: true,
+      dueDate: true,
+      completedAt: true,
+      postponementCount: true,
+      assignees: { select: { userId: true, user: { select: { name: true, email: true } } } },
+    },
+  });
+  const taskStats = computeTaskDashboardStats(
+    taskRows.map((t) => ({
+      ...t,
+      assignees: t.assignees.map((a) => ({ userId: a.userId, name: a.user.name, email: a.user.email })),
+    })),
+    user.id,
+    ymdInTz(new Date()),
+  );
 
   const data = computeDashboard({
     projects,
@@ -206,6 +227,55 @@ export default async function DashboardPage() {
                 value={data.clients.withOutstanding}
               />
             </div>
+          </section>
+
+          {/* Tasks overview */}
+          <section>
+            <h2 className="mb-3 text-sm font-semibold text-foreground-muted">المهام</h2>
+            {taskRows.length === 0 ? (
+              <Card>
+                <p className="text-sm text-foreground-muted">
+                  لا توجد مهام حاليًا.{" "}
+                  <Link href="/tasks" className="text-accent hover:underline">
+                    + إنشاء مهمة جديدة
+                  </Link>
+                </p>
+              </Card>
+            ) : (
+              <>
+                <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
+                  <StatCard label="مهامي" value={taskStats.myActive} />
+                  <StatCard label="مهام الفريق" value={taskStats.teamActive} />
+                  <StatCard label="مكتملة اليوم" value={taskStats.completedToday} tone="success" />
+                  <StatCard
+                    label="مهام مؤجلة"
+                    value={taskStats.postponed}
+                    tone={taskStats.postponed > 0 ? "warning" : "default"}
+                  />
+                  <StatCard
+                    label="متأخرة"
+                    value={taskStats.overdue}
+                    tone={taskStats.overdue > 0 ? "danger" : "default"}
+                  />
+                </div>
+                {taskStats.team.length > 0 && (
+                  <Card className="mt-3">
+                    <h3 className="mb-3 text-sm font-semibold">مهام الفريق</h3>
+                    <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {taskStats.team.map((m) => (
+                        <li
+                          key={m.userId}
+                          className="flex items-center justify-between rounded-md border border-border bg-surface-2 px-3 py-2 text-sm"
+                        >
+                          <span>{m.label}</span>
+                          <span className="text-foreground-muted">{m.activeCount} مهمة</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </Card>
+                )}
+              </>
+            )}
           </section>
 
           {/* Cash flow chart */}

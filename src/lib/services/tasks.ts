@@ -1,4 +1,4 @@
-import { zonedInputToUtc } from "@/lib/datetime";
+import { zonedInputToUtc, ymdInTz } from "@/lib/datetime";
 
 export const TASK_STATUSES = ["todo", "in_progress", "done"] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
@@ -39,4 +39,131 @@ export function parseTaskForm(formData: FormData): {
   }
 
   return { values, errors, parsed: { dueDateUtc } };
+}
+
+/** "YYYY-MM-DD" -> "YYYY-MM-DD" + n days, plain calendar-day math (no TZ conversion needed on a date-only string). */
+export function shiftYmd(ymd: string, days: number): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
+}
+
+export interface TaskBucketInput {
+  id: string;
+  dueDate: Date | null;
+  status: string;
+}
+
+/**
+ * Groups tasks (already fetched for the relevant window) into: overdue
+ * (safety net — should be empty right after a rollover), no-due-date, and
+ * one bucket per Cairo calendar day in [rangeStartYmd, rangeEndYmd]. Empty
+ * days are omitted (Todoist-Upcoming style — only days with tasks show).
+ * Within a day, pending tasks come before done ones.
+ */
+export function bucketizeTasks<T extends TaskBucketInput>(
+  tasks: T[],
+  todayYmd: string,
+  rangeStartYmd: string,
+  rangeEndYmd: string,
+): { overdue: T[]; noDate: T[]; days: { ymd: string; tasks: T[] }[] } {
+  const overdue: T[] = [];
+  const noDate: T[] = [];
+  const byDay = new Map<string, T[]>();
+
+  for (const t of tasks) {
+    if (!t.dueDate) {
+      noDate.push(t);
+      continue;
+    }
+    const ymd = ymdInTz(t.dueDate);
+    if (ymd < todayYmd && t.status !== "done") {
+      overdue.push(t);
+      continue;
+    }
+    if (ymd < rangeStartYmd || ymd > rangeEndYmd) continue; // outside the visible window
+    const list = byDay.get(ymd) ?? [];
+    list.push(t);
+    byDay.set(ymd, list);
+  }
+
+  const sortDayTasks = (list: T[]) =>
+    [...list].sort((a, b) => {
+      if ((a.status === "done") !== (b.status === "done")) return a.status === "done" ? 1 : -1;
+      return (a.dueDate?.getTime() ?? 0) - (b.dueDate?.getTime() ?? 0);
+    });
+
+  const days: { ymd: string; tasks: T[] }[] = [];
+  let cursor = rangeStartYmd;
+  while (cursor <= rangeEndYmd) {
+    const list = byDay.get(cursor);
+    if (list && list.length > 0) days.push({ ymd: cursor, tasks: sortDayTasks(list) });
+    cursor = shiftYmd(cursor, 1);
+  }
+
+  return { overdue, noDate, days };
+}
+
+/** Visual "lightness" step for a postponed task's card, capped. */
+export function postponementOpacityClass(count: number): string {
+  if (count <= 0) return "";
+  if (count === 1) return "opacity-90";
+  if (count === 2) return "opacity-75";
+  return "opacity-60";
+}
+
+export interface TaskStatsInput {
+  id: string;
+  status: string;
+  dueDate: Date | null;
+  completedAt: Date | null;
+  postponementCount: number;
+  assignees: { userId: string; name: string | null; email: string }[];
+}
+
+export interface TaskDashboardStats {
+  myActive: number;
+  teamActive: number;
+  completedToday: number;
+  postponed: number;
+  overdue: number;
+  team: { userId: string; label: string; activeCount: number }[];
+}
+
+/** Dashboard "Task Statistics" + "Team Task Overview" — DB-driven, no hardcoding (spec #15-17). */
+export function computeTaskDashboardStats(
+  tasks: TaskStatsInput[],
+  meId: string,
+  todayYmd: string,
+): TaskDashboardStats {
+  let myActive = 0;
+  let teamActive = 0;
+  let completedToday = 0;
+  let postponed = 0;
+  let overdue = 0;
+  const teamCounts = new Map<string, { label: string; activeCount: number }>();
+
+  for (const t of tasks) {
+    const isDone = t.status === "done";
+    const isMine = t.assignees.some((a) => a.userId === meId);
+
+    if (!isDone) {
+      teamActive++;
+      if (isMine) myActive++;
+      if (t.postponementCount > 0) postponed++;
+      if (t.dueDate && ymdInTz(t.dueDate) < todayYmd) overdue++;
+      for (const a of t.assignees) {
+        const entry = teamCounts.get(a.userId) ?? { label: a.name || a.email, activeCount: 0 };
+        entry.activeCount++;
+        teamCounts.set(a.userId, entry);
+      }
+    }
+    if (isDone && t.completedAt && ymdInTz(t.completedAt) === todayYmd) completedToday++;
+  }
+
+  const team = [...teamCounts.entries()]
+    .map(([userId, v]) => ({ userId, label: v.label, activeCount: v.activeCount }))
+    .sort((a, b) => b.activeCount - a.activeCount);
+
+  return { myActive, teamActive, completedToday, postponed, overdue, team };
 }

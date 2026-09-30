@@ -2,12 +2,18 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { formatDateTime } from "@/lib/datetime";
+import { ymdInTz, formatDayLabel, zonedInputToUtc } from "@/lib/datetime";
+import { bucketizeTasks, shiftYmd } from "@/lib/services/tasks";
 import { getAssignableUsers } from "@/lib/services/assignees";
-import { TaskStatusChanger } from "@/components/tasks/TaskStatusChanger";
-import { DeleteTaskButton } from "@/components/tasks/DeleteTaskButton";
+import { rolloverOverdueTasks } from "@/lib/services/task-rollover";
+import { TaskCard } from "@/components/tasks/TaskCard";
+import { TaskDateNav } from "@/components/tasks/TaskDateNav";
 import { RequestForwardButton } from "@/components/tasks/RequestForwardButton";
+import { DeleteTaskButton } from "@/components/tasks/DeleteTaskButton";
 import { EmployeeTaskFormModal } from "./EmployeeTaskFormModal";
+
+const WINDOW_DAYS = 14;
+const OVERDUE_LOOKBACK_DAYS = 60;
 
 const FORWARD_STATUS_LABELS: Record<string, string> = {
   pending: "قيد المراجعة",
@@ -20,13 +26,36 @@ const FORWARD_STATUS_TONE: Record<string, "neutral" | "success" | "danger"> = {
   rejected: "danger",
 };
 
-export default async function EmployeeTasksPage() {
+export default async function EmployeeTasksPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string }>;
+}) {
   const me = await requireUser();
+  const sp = await searchParams;
   const employee = await prisma.employee.findUniqueOrThrow({ where: { userId: me.id } });
+
+  await rolloverOverdueTasks();
+
+  const today = ymdInTz(new Date());
+  const from = sp.from && /^\d{4}-\d{2}-\d{2}$/.test(sp.from) ? sp.from : today;
+  const rangeEnd = shiftYmd(from, WINDOW_DAYS - 1);
+  const lookbackStart = shiftYmd(from, -OVERDUE_LOOKBACK_DAYS);
 
   const [tasks, myProjects, assignees, myForwardRequests] = await Promise.all([
     prisma.task.findMany({
-      where: { assignees: { some: { userId: me.id } } },
+      where: {
+        assignees: { some: { userId: me.id } },
+        OR: [
+          { dueDate: null },
+          {
+            dueDate: {
+              gte: zonedInputToUtc(`${lookbackStart}T00:00`)!,
+              lte: zonedInputToUtc(`${rangeEnd}T23:59`)!,
+            },
+          },
+        ],
+      },
       orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
       include: {
         project: { select: { id: true, name: true } },
@@ -48,57 +77,75 @@ export default async function EmployeeTasksPage() {
 
   const candidates = assignees.filter((a) => a.id !== me.id);
   const projectOptions = myProjects.map((a) => a.project);
+  const { overdue, noDate, days } = bucketizeTasks(tasks, today, from, rangeEnd);
+
+  function renderTask(t: (typeof tasks)[number]) {
+    return (
+      <TaskCard
+        key={t.id}
+        task={{
+          id: t.id,
+          title: t.title,
+          description: t.description,
+          dueDate: t.dueDate,
+          status: t.status,
+          postponementCount: t.postponementCount,
+          project: t.project,
+          assignees: t.assignees.map((a) => a.user),
+        }}
+        actions={
+          <>
+            <RequestForwardButton taskId={t.id} candidates={candidates} />
+            {t.createdBy === me.id && <DeleteTaskButton taskId={t.id} title={t.title} />}
+          </>
+        }
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">مهامي</h1>
-          <p className="mt-1 text-sm text-foreground-muted">{tasks.length} مهمة معيّنة عليك.</p>
+          <p className="mt-1 text-sm text-foreground-muted">{tasks.length} مهمة في النطاق الحالي</p>
         </div>
         <EmployeeTaskFormModal projects={projectOptions} />
       </div>
 
-      <div className="flex flex-col gap-3">
-        {tasks.length === 0 && (
-          <Card>
-            <p className="text-center text-sm text-foreground-muted">لا توجد مهام.</p>
-          </Card>
-        )}
-        {tasks.map((t) => (
-          <Card key={t.id}>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-medium">{t.title}</h3>
-                  {t.dueDate && (
-                    <Badge tone={t.status !== "done" && t.dueDate < new Date() ? "danger" : "neutral"}>
-                      {formatDateTime(t.dueDate)}
-                    </Badge>
-                  )}
-                </div>
-                {t.description && (
-                  <p className="mt-1 text-sm text-foreground-muted">{t.description}</p>
-                )}
-                <p className="mt-1 text-xs text-foreground-muted">
-                  {t.project && <>المشروع: {t.project.name} — </>}
-                  أنشأها: {t.creator?.name || t.creator?.email || "—"}
-                </p>
-                {t.assignees.length > 1 && (
-                  <p className="mt-1 text-xs text-foreground-muted">
-                    معاك: {t.assignees.filter((a) => a.userId !== me.id).map((a) => a.user.name || a.user.email).join("، ")}
-                  </p>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <TaskStatusChanger taskId={t.id} current={t.status} />
-                <RequestForwardButton taskId={t.id} candidates={candidates} />
-                {t.createdBy === me.id && <DeleteTaskButton taskId={t.id} title={t.title} />}
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+      <Card>
+        <TaskDateNav basePath="/employee/tasks" from={from} />
+      </Card>
+
+      {overdue.length > 0 && (
+        <Card>
+          <h2 className="mb-3 text-base font-semibold text-danger">متأخرة ({overdue.length})</h2>
+          <div className="flex flex-col gap-2">{overdue.map(renderTask)}</div>
+        </Card>
+      )}
+
+      {noDate.length > 0 && (
+        <Card>
+          <h2 className="mb-3 text-base font-semibold">بدون موعد ({noDate.length})</h2>
+          <div className="flex flex-col gap-2">{noDate.map(renderTask)}</div>
+        </Card>
+      )}
+
+      {days.length === 0 && overdue.length === 0 && noDate.length === 0 && (
+        <Card>
+          <p className="text-center text-sm text-foreground-muted">لا توجد مهام في النطاق الحالي.</p>
+        </Card>
+      )}
+
+      {days.map((day) => (
+        <div key={day.ymd}>
+          <div className="mb-2 flex items-baseline gap-2">
+            <h2 className="text-base font-semibold">{formatDayLabel(day.ymd)}</h2>
+            <span className="text-xs text-foreground-muted">{day.tasks.length} مهمة</span>
+          </div>
+          <div className="flex flex-col gap-2">{day.tasks.map(renderTask)}</div>
+        </div>
+      ))}
 
       {myForwardRequests.length > 0 && (
         <Card className="p-0">

@@ -766,15 +766,17 @@ enum TaskForwardRequestStatus {
 }
 
 model Task {
-  id          String     @id @default(uuid()) @db.Uuid
-  title       String
-  description String?
-  projectId   String?    @map("project_id") @db.Uuid
-  dueDate     DateTime?  @map("due_date")
-  status      TaskStatus @default(todo)
-  createdBy   String?    @map("created_by") @db.Uuid
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @updatedAt @map("updated_at")
+  id                String     @id @default(uuid()) @db.Uuid
+  title             String
+  description       String?
+  projectId         String?    @map("project_id") @db.Uuid
+  dueDate           DateTime?  @map("due_date")
+  status            TaskStatus @default(todo)
+  completedAt       DateTime?  @map("completed_at")
+  postponementCount Int        @default(0) @map("postponement_count")
+  createdBy         String?    @map("created_by") @db.Uuid
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
 
   project         Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
   creator         User?                @relation("TaskCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)

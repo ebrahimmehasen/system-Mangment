@@ -7,6 +7,10 @@ import { postponementOpacityClass } from "@/lib/services/tasks";
 import { getTaskDetailAction, toggleTaskCompleteAction, type TaskDetail } from "@/server/task-actions";
 import { TaskCompletionCircle } from "./TaskCompletionCircle";
 import { TaskDetailModal } from "./TaskDetailModal";
+import { TaskPriorityInput } from "./TaskPriorityInput";
+
+/** dataTransfer type used by drag-and-drop between board columns. */
+export const TASK_DRAG_TYPE = "application/x-task-id";
 
 export interface TaskCardData {
   id: string;
@@ -15,6 +19,7 @@ export interface TaskCardData {
   dueDate: Date | null;
   status: string;
   postponementCount: number;
+  priority: number;
   project: { id: string; name: string } | null;
   assignees: { id: string; name: string | null; email: string; role: string }[];
 }
@@ -43,6 +48,7 @@ export function TaskCard({
   const [toggling, startToggleTransition] = useTransition();
   const [doneOverride, setDoneOverride] = useState<boolean | null>(null);
   const done = doneOverride ?? task.status === "done";
+  const [dragging, setDragging] = useState(false);
 
   function fetchDetail() {
     setError(null);
@@ -77,7 +83,14 @@ export function TaskCard({
         tabIndex={0}
         onClick={openDetail}
         onKeyDown={(e) => e.key === "Enter" && openDetail()}
-        className={`flex cursor-pointer flex-col gap-1.5 rounded-lg border border-border bg-surface-2 p-2.5 transition-colors hover:border-accent/40 hover:bg-surface ${postponementOpacityClass(task.postponementCount)} ${done ? "bg-surface" : ""}`}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData(TASK_DRAG_TYPE, task.id);
+          e.dataTransfer.effectAllowed = "move";
+          setDragging(true);
+        }}
+        onDragEnd={() => setDragging(false)}
+        className={`${dragging ? "opacity-40" : ""} flex cursor-grab active:cursor-grabbing flex-col gap-1.5 rounded-lg border border-border bg-surface-2 p-2.5 transition-colors hover:border-accent/40 hover:bg-surface ${postponementOpacityClass(task.postponementCount)} ${done ? "bg-surface" : ""}`}
       >
         <div className="flex items-start gap-2">
           <div className="mt-0.5">
@@ -86,6 +99,7 @@ export function TaskCard({
           <span className={`min-w-0 flex-1 text-sm ${done ? "text-foreground-muted line-through" : "text-foreground"}`}>
             {task.title}
           </span>
+          <TaskPriorityInput taskId={task.id} priority={task.priority} />
         </div>
 
         {task.description && (

@@ -92,6 +92,7 @@ export default async function EmployeeTasksPage({
           dueDate: t.dueDate,
           status: t.status,
           postponementCount: t.postponementCount,
+          priority: t.priority,
           project: t.project,
           assignees: t.assignees.map((a) => a.user),
         }}

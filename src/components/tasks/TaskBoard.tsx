@@ -33,7 +33,10 @@ export function TaskBoard<T extends BoardTask>({
           {overdue.map(renderTask)}
         </TaskDayColumn>
       )}
-      <TaskDayColumn ymd={todayYmd} todayYmd={todayYmd} titleOverride="بدون موعد" count={noDate.length}>
+      <TaskDayColumn ymd={todayYmd} todayYmd={todayYmd} titleOverride="بدون موعد"
+        count={noDate.length}
+        dropYmd={null}
+      >
         {noDate.map(renderTask)}
       </TaskDayColumn>
       {days.map((day) => (
@@ -43,6 +46,7 @@ export function TaskBoard<T extends BoardTask>({
           todayYmd={todayYmd}
           count={day.tasks.length}
           quickAddDueDate={`${day.ymd}T12:00`}
+          dropYmd={day.ymd}
         >
           {day.tasks.map(renderTask)}
         </TaskDayColumn>

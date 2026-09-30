@@ -774,6 +774,8 @@ model Task {
   status            TaskStatus @default(todo)
   completedAt       DateTime?  @map("completed_at")
   postponementCount Int        @default(0) @map("postponement_count")
+  /// 0 = no priority; 1..99, higher = more important (sorts first within a column).
+  priority          Int        @default(0)
   createdBy         String?    @map("created_by") @db.Uuid
   createdAt         DateTime   @default(now()) @map("created_at")
   updatedAt         DateTime   @updatedAt @map("updated_at")

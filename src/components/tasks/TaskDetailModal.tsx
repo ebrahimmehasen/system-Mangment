@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { SelectField, TextField } from "@/components/ui/Field";
 import { formatDateTime, utcToZonedInput } from "@/lib/datetime";
 import { TASK_STATUS_LABELS, type TaskStatus } from "@/lib/services/tasks";
+import { TaskPriorityInput } from "./TaskPriorityInput";
 import { updateTaskDetailsAction, type TaskDetail } from "@/server/task-actions";
 
 /** The initial fetch (on the click that opens this) is owned by the caller
@@ -80,6 +81,18 @@ export function TaskDetailModal({
             <Info label="أنشأها" value={detail.creator?.name || detail.creator?.email || "—"} />
             {!canEdit && <Info label="المشروع" value={detail.project?.name || "—"} />}
             <Info label="مرات التأجيل" value={String(detail.postponementCount)} />
+            <div>
+              <dt className="text-xs text-foreground-muted">الأولوية (1–99)</dt>
+              <dd className="mt-0.5">
+                <TaskPriorityInput
+                  key={`${detail.id}-${detail.priority}`}
+                  taskId={detail.id}
+                  priority={detail.priority}
+                  onSaved={onSaved}
+                  className="h-7 w-16 text-sm"
+                />
+              </dd>
+            </div>
           </dl>
 
           <div>
@@ -142,8 +155,8 @@ export function TaskDetailModal({
                   <span className="mr-2 text-foreground-muted">{formatDateTime(new Date(a.at))}</span>
                   {isDueDateChange(a.oldValue, a.newValue) && (
                     <div className="mt-0.5 text-foreground-muted">
-                      {formatDateTime(new Date((a.oldValue as { dueDate: string }).dueDate))} ←{" "}
-                      {formatDateTime(new Date((a.newValue as { dueDate: string }).dueDate))}
+                      {fmtDue((a.oldValue as { dueDate: string | null }).dueDate)} ←{" "}
+                      {fmtDue((a.newValue as { dueDate: string | null }).dueDate)}
                     </div>
                   )}
                 </li>
@@ -154,6 +167,10 @@ export function TaskDetailModal({
       )}
     </Modal>
   );
+}
+
+function fmtDue(iso: string | null): string {
+  return iso ? formatDateTime(new Date(iso)) : "بدون موعد";
 }
 
 function isDueDateChange(oldValue: unknown, newValue: unknown): boolean {

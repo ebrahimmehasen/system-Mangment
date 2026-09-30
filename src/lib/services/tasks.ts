@@ -48,10 +48,29 @@ export function shiftYmd(ymd: string, days: number): string {
   return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
 }
 
+export const TASK_PRIORITY_MAX = 99;
+
+/** Parses a priority input: blank/0 -> 0 (none), 1..99 -> itself, anything else -> null (invalid). */
+export function parseTaskPriority(raw: unknown): number | null {
+  const str = String(raw ?? "").trim();
+  if (str === "") return 0;
+  if (!/^d{1,2}$/.test(str)) return null;
+  const n = Number(str);
+  return n >= 0 && n <= TASK_PRIORITY_MAX ? n : null;
+}
+
 export interface TaskBucketInput {
   id: string;
   dueDate: Date | null;
   status: string;
+  priority: number;
+}
+
+/** Board order inside one column: open before done, then higher priority first, then earlier due time. */
+function compareTasks(a: TaskBucketInput, b: TaskBucketInput): number {
+  if ((a.status === "done") !== (b.status === "done")) return a.status === "done" ? 1 : -1;
+  if (a.priority !== b.priority) return b.priority - a.priority;
+  return (a.dueDate?.getTime() ?? 0) - (b.dueDate?.getTime() ?? 0);
 }
 
 /**
@@ -91,11 +110,7 @@ export function bucketizeTasks<T extends TaskBucketInput>(
     byDay.set(ymd, list);
   }
 
-  const sortDayTasks = (list: T[]) =>
-    [...list].sort((a, b) => {
-      if ((a.status === "done") !== (b.status === "done")) return a.status === "done" ? 1 : -1;
-      return (a.dueDate?.getTime() ?? 0) - (b.dueDate?.getTime() ?? 0);
-    });
+  const sortDayTasks = (list: T[]) => [...list].sort(compareTasks);
 
   const days: { ymd: string; tasks: T[] }[] = [];
   let cursor = rangeStartYmd;
@@ -106,7 +121,7 @@ export function bucketizeTasks<T extends TaskBucketInput>(
     cursor = shiftYmd(cursor, 1);
   }
 
-  return { overdue, noDate, days };
+  return { overdue: sortDayTasks(overdue), noDate: sortDayTasks(noDate), days };
 }
 
 /** Visual "lightness" step for a postponed task's card, capped. */

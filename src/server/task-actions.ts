@@ -4,9 +4,9 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { requireUser, requireAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
-import { parseTaskForm, TASK_STATUSES, type TaskStatus } from "@/lib/services/tasks";
+import { parseTaskForm, parseTaskPriority, TASK_STATUSES, type TaskStatus } from "@/lib/services/tasks";
 import { actionLabel } from "@/lib/audit-labels";
-import { zonedInputToUtc } from "@/lib/datetime";
+import { utcToZonedInput, zonedInputToUtc } from "@/lib/datetime";
 
 export interface TaskActionState {
   error?: string;
@@ -244,6 +244,94 @@ export async function updateTaskDetailsAction(
   return { success: true };
 }
 
+/** Admin can edit any task; a non-admin only one they're assigned to. Returns the task or an error. */
+async function loadEditableTask(taskId: string, user: { id: string; role: string }) {
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: { assignees: { select: { userId: true } } },
+  });
+  if (!task) return { error: "المهمة غير موجودة." } as const;
+  if (user.role !== "admin" && !task.assignees.some((a) => a.userId === user.id)) {
+    return { error: "إنت مش معيّن على المهمة دي." } as const;
+  }
+  return { task } as const;
+}
+
+/** Sets a task's priority (0/blank = none, 1..99, higher = shown first in its column). */
+export async function setTaskPriorityAction(
+  taskId: string,
+  priority: string | number,
+): Promise<{ error?: string; priority?: number }> {
+  const user = await requireUser();
+  const value = parseTaskPriority(priority);
+  if (value === null) return { error: "الأولوية لازم تكون رقم من 1 لـ 99." };
+
+  const res = await loadEditableTask(taskId, user);
+  if ("error" in res) return { error: res.error };
+  if (res.task.priority === value) return { priority: value };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.task.update({ where: { id: taskId }, data: { priority: value } });
+    await writeAuditLog(
+      {
+        userId: user.id,
+        action: "updated",
+        entity: "task",
+        entityId: taskId,
+        oldValue: { priority: res.task.priority },
+        newValue: { priority: value },
+      },
+      tx,
+    );
+  });
+
+  revalidateTaskPaths();
+  return { priority: value };
+}
+
+/**
+ * Drag-and-drop: moves a task to another board column. `ymd` is a Cairo
+ * calendar day ("YYYY-MM-DD") or null for "بدون موعد". Keeps the task's
+ * existing time of day (noon for a task that had no date).
+ */
+export async function moveTaskToDayAction(
+  taskId: string,
+  ymd: string | null,
+): Promise<{ error?: string }> {
+  const user = await requireUser();
+  if (ymd !== null && !/^d{4}-d{2}-d{2}$/.test(ymd)) return { error: "تاريخ غير صالح." };
+
+  const res = await loadEditableTask(taskId, user);
+  if ("error" in res) return { error: res.error };
+  const { task } = res;
+
+  let dueDate: Date | null = null;
+  if (ymd) {
+    const time = task.dueDate ? utcToZonedInput(task.dueDate).slice(11, 16) : "12:00";
+    dueDate = zonedInputToUtc(`${ymd}T${time}`);
+    if (!dueDate) return { error: "تاريخ غير صالح." };
+  }
+  if ((task.dueDate?.getTime() ?? null) === (dueDate?.getTime() ?? null)) return {};
+
+  await prisma.$transaction(async (tx) => {
+    await tx.task.update({ where: { id: taskId }, data: { dueDate } });
+    await writeAuditLog(
+      {
+        userId: user.id,
+        action: "updated",
+        entity: "task",
+        entityId: taskId,
+        oldValue: { dueDate: task.dueDate?.toISOString() ?? null },
+        newValue: { dueDate: dueDate?.toISOString() ?? null },
+      },
+      tx,
+    );
+  });
+
+  revalidateTaskPaths();
+  return {};
+}
+
 /** Admin can delete any task; a non-admin only their own (self-created) task. */
 export async function deleteTaskAction(taskId: string): Promise<{ error?: string }> {
   const user = await requireUser();
@@ -408,6 +496,7 @@ export interface TaskDetail {
   dueDate: string | null;
   completedAt: string | null;
   postponementCount: number;
+  priority: number;
   createdAt: string;
   project: { id: string; name: string } | null;
   creator: { name: string | null; email: string } | null;
@@ -454,6 +543,7 @@ export async function getTaskDetailAction(taskId: string): Promise<{ error?: str
       dueDate: task.dueDate?.toISOString() ?? null,
       completedAt: task.completedAt?.toISOString() ?? null,
       postponementCount: task.postponementCount,
+      priority: task.priority,
       createdAt: task.createdAt.toISOString(),
       project: task.project,
       creator: task.creator,

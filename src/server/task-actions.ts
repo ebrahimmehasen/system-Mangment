@@ -6,6 +6,7 @@ import { requireUser, requireAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
 import { parseTaskForm, TASK_STATUSES, type TaskStatus } from "@/lib/services/tasks";
 import { actionLabel } from "@/lib/audit-labels";
+import { zonedInputToUtc } from "@/lib/datetime";
 
 export interface TaskActionState {
   error?: string;
@@ -186,6 +187,61 @@ export async function updateTaskAction(
 
   revalidateTaskPaths();
   return { success: "تم تحديث المهمة." };
+}
+
+export interface TaskDetailsUpdateState {
+  error?: string;
+  success?: boolean;
+}
+
+/**
+ * Admin-only, from the details modal: change which project the task belongs
+ * to and/or correct its completion date directly. Setting a completion date
+ * implies the task is done (status flips to "done" too, so the two fields
+ * never disagree); clearing it just removes the timestamp without touching
+ * status. Logged to the same audit trail as every other task edit.
+ */
+export async function updateTaskDetailsAction(
+  taskId: string,
+  formData: FormData,
+): Promise<TaskDetailsUpdateState> {
+  const user = await requireAdmin();
+
+  const existing = await prisma.task.findUnique({ where: { id: taskId } });
+  if (!existing) return { error: "المهمة غير موجودة." };
+
+  const projectId = String(formData.get("projectId") ?? "").trim() || null;
+  const completedAtLocal = String(formData.get("completedAt") ?? "").trim();
+  let completedAt: Date | null = null;
+  if (completedAtLocal) {
+    completedAt = zonedInputToUtc(completedAtLocal);
+    if (!completedAt) return { error: "تاريخ إتمام غير صالح." };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.task.update({
+      where: { id: taskId },
+      data: {
+        projectId,
+        completedAt,
+        status: completedAt ? "done" : existing.status,
+      },
+    });
+    await writeAuditLog(
+      {
+        userId: user.id,
+        action: "updated",
+        entity: "task",
+        entityId: taskId,
+        oldValue: { projectId: existing.projectId, completedAt: existing.completedAt?.toISOString() ?? null },
+        newValue: { projectId, completedAt: completedAt?.toISOString() ?? null },
+      },
+      tx,
+    );
+  });
+
+  revalidateTaskPaths();
+  return { success: true };
 }
 
 /** Admin can delete any task; a non-admin only their own (self-created) task. */

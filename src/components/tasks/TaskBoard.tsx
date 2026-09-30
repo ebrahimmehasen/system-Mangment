@@ -20,7 +20,7 @@ export function TaskBoard<T extends BoardTask>({
   renderTask: (task: T) => ReactNode;
 }) {
   return (
-    <div className="flex gap-3 overflow-x-auto pb-2">
+    <div className="no-scrollbar flex gap-3 overflow-x-auto pb-2">
       {overdue.length > 0 && (
         <TaskDayColumn
           ymd={todayYmd}

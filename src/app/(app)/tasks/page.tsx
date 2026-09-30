@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { after } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/Card";
@@ -26,9 +27,11 @@ export default async function TasksPage({
   const me = await requireUser();
   const sp = await searchParams;
 
-  // Server-side idempotent rollover — cheap no-op once caught up (see
-  // src/lib/services/task-rollover.ts). Runs on every load, same as cron.
-  await rolloverOverdueTasks();
+  // Server-side idempotent rollover — same fn the cron hits. Scheduled via
+  // after() so it runs post-response instead of blocking this page's
+  // render/refresh on a full table scan every single load (that was the
+  // main cause of "المهام تقيلة بعد أي تعديل").
+  after(() => rolloverOverdueTasks());
 
   const tab = sp.tab === "mine" ? "mine" : "all";
   const status = sp.status === "pending" || sp.status === "done" ? sp.status : "all";
@@ -102,6 +105,8 @@ export default async function TasksPage({
           project: t.project,
           assignees: t.assignees.map((a) => a.user),
         }}
+        canEditDetails
+        projects={projects}
         actions={
           <>
             <TaskFormModal

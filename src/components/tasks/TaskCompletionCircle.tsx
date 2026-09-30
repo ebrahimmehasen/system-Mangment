@@ -1,31 +1,23 @@
 "use client";
 
-import { useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { toggleTaskCompleteAction } from "@/server/task-actions";
-
-export function TaskCompletionCircle({ taskId, done }: { taskId: string; done: boolean }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-
-  function onClick(e: React.MouseEvent) {
-    e.stopPropagation();
-    startTransition(async () => {
-      await toggleTaskCompleteAction(taskId);
-      router.refresh();
-    });
-  }
-
+/** Dumb/presentational — TaskCard owns the optimistic pending state and click handler. */
+export function TaskCompletionCircle({
+  done,
+  onClick,
+  disabled,
+}: {
+  done: boolean;
+  onClick: (e: React.MouseEvent) => void;
+  disabled?: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={pending}
+      disabled={disabled}
       aria-label={done ? "إعادة فتح المهمة" : "إتمام المهمة"}
       className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors disabled:opacity-50 ${
-        done
-          ? "border-success bg-success text-white"
-          : "border-border hover:border-accent"
+        done ? "border-success bg-success text-white" : "border-border hover:border-accent"
       }`}
     >
       {done && (

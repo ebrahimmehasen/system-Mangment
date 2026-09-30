@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { postponementOpacityClass } from "@/lib/services/tasks";
-import { getTaskDetailAction, type TaskDetail } from "@/server/task-actions";
+import { getTaskDetailAction, toggleTaskCompleteAction, type TaskDetail } from "@/server/task-actions";
 import { TaskCompletionCircle } from "./TaskCompletionCircle";
 import { TaskDetailModal } from "./TaskDetailModal";
 
@@ -18,22 +19,54 @@ export interface TaskCardData {
   assignees: { id: string; name: string | null; email: string; role: string }[];
 }
 
-export function TaskCard({ task, actions }: { task: TaskCardData; actions?: ReactNode }) {
+export function TaskCard({
+  task,
+  actions,
+  canEditDetails = false,
+  projects = [],
+}: {
+  task: TaskCardData;
+  actions?: ReactNode;
+  /** Admin-only: lets the details modal edit project/completion date. */
+  canEditDetails?: boolean;
+  projects?: { id: string; name: string }[];
+}) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<TaskDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [detailPending, startDetailTransition] = useTransition();
 
-  const done = task.status === "done";
+  // Optimistic completion toggle: flips instantly, server call + refresh
+  // happen in the background so the board never sits on a full reload for
+  // this. Reverts on a server error.
+  const [toggling, startToggleTransition] = useTransition();
+  const [doneOverride, setDoneOverride] = useState<boolean | null>(null);
+  const done = doneOverride ?? task.status === "done";
+
+  function fetchDetail() {
+    setError(null);
+    startDetailTransition(async () => {
+      const res = await getTaskDetailAction(task.id);
+      if (res.error) setError(res.error);
+      else if (res.task) setDetail(res.task);
+    });
+  }
 
   function openDetail() {
     setOpen(true);
     setDetail(null);
-    setError(null);
-    startTransition(async () => {
-      const res = await getTaskDetailAction(task.id);
-      if (res.error) setError(res.error);
-      else if (res.task) setDetail(res.task);
+    fetchDetail();
+  }
+
+  function toggleDone(e: React.MouseEvent) {
+    e.stopPropagation();
+    const next = !done;
+    setDoneOverride(next);
+    startToggleTransition(async () => {
+      const res = await toggleTaskCompleteAction(task.id);
+      if (res?.error) setDoneOverride(!next);
+      router.refresh();
     });
   }
 
@@ -47,8 +80,8 @@ export function TaskCard({ task, actions }: { task: TaskCardData; actions?: Reac
         className={`flex cursor-pointer flex-col gap-1.5 rounded-lg border border-border bg-surface-2 p-2.5 transition-colors hover:border-accent/40 hover:bg-surface ${postponementOpacityClass(task.postponementCount)} ${done ? "bg-surface" : ""}`}
       >
         <div className="flex items-start gap-2">
-          <div onClick={(e) => e.stopPropagation()} className="mt-0.5">
-            <TaskCompletionCircle taskId={task.id} done={done} />
+          <div className="mt-0.5">
+            <TaskCompletionCircle done={done} onClick={toggleDone} disabled={toggling} />
           </div>
           <span className={`min-w-0 flex-1 text-sm ${done ? "text-foreground-muted line-through" : "text-foreground"}`}>
             {task.title}
@@ -94,9 +127,15 @@ export function TaskCard({ task, actions }: { task: TaskCardData; actions?: Reac
       <TaskDetailModal
         open={open}
         onClose={() => setOpen(false)}
-        loading={pending}
+        loading={detailPending}
         error={error}
         detail={detail}
+        canEdit={canEditDetails}
+        projects={projects}
+        onSaved={() => {
+          fetchDetail();
+          router.refresh();
+        }}
       />
     </>
   );

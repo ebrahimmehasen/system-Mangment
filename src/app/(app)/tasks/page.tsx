@@ -167,6 +167,7 @@ export default async function TasksPage({
               <Link
                 key={t.key}
                 href={filterHref({ tab: t.key })}
+                prefetch={false}
                 className={`rounded-md border border-border px-3 py-1.5 text-sm ${
                   tab === t.key ? "bg-accent/10 text-accent" : "text-foreground-muted hover:bg-surface-2"
                 }`}
@@ -183,6 +184,7 @@ export default async function TasksPage({
               <Link
                 key={s.key}
                 href={filterHref({ status: s.key })}
+                prefetch={false}
                 className={`rounded-md border border-border px-3 py-1.5 text-sm ${
                   status === s.key ? "bg-accent/10 text-accent" : "text-foreground-muted hover:bg-surface-2"
                 }`}

@@ -11,13 +11,16 @@ export function QuickAddTask({ dueDateLocal }: { dueDateLocal?: string }) {
   const [title, setTitle] = useState("");
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
+  const submittedRef = useRef(false);
 
   function submit() {
+    if (submittedRef.current) return;
     const trimmed = title.trim();
     if (!trimmed) {
       setEditing(false);
       return;
     }
+    submittedRef.current = true;
     const formData = new FormData();
     formData.set("title", trimmed);
     if (dueDateLocal) formData.set("dueDate", dueDateLocal);
@@ -25,6 +28,7 @@ export function QuickAddTask({ dueDateLocal }: { dueDateLocal?: string }) {
       await createTaskAction({}, formData);
       setTitle("");
       setEditing(false);
+      submittedRef.current = false;
       router.refresh();
     });
   }

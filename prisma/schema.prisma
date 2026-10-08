@@ -779,6 +779,8 @@ model Task {
   priority          Int        @default(0)
   /// Who actually marked the task done (one of the assignees, or an admin).
   completedById     String?    @map("completed_by") @db.Uuid
+  /// Original due date of a task that slipped past its day and was rolled forward; cleared on reschedule/completion.
+  overdueSince      DateTime?  @map("overdue_since")
   createdBy         String?    @map("created_by") @db.Uuid
   createdAt         DateTime   @default(now()) @map("created_at")
   updatedAt         DateTime   @updatedAt @map("updated_at")

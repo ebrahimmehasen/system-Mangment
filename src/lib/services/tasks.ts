@@ -69,6 +69,7 @@ export interface TaskBucketInput {
   dueDate: Date | null;
   status: string;
   priority: number;
+  completedAt?: Date | null;
 }
 
 /** 1 (most important) sorts first … 99 last; 0 = no priority sorts after everything. */
@@ -109,10 +110,19 @@ export function bucketizeTasks<T extends TaskBucketInput>(
       noDate.push(t);
       continue;
     }
-    const ymd = ymdInTz(t.dueDate);
-    if (ymd < todayYmd && t.status !== "done") {
-      overdue.push(t);
-      continue;
+    const dueYmd = ymdInTz(t.dueDate);
+    let ymd = dueYmd;
+    if (t.status === "done") {
+      // Finished after its due day: it stays findable on the day it was finished.
+      const doneYmd = t.completedAt ? ymdInTz(t.completedAt) : dueYmd;
+      if (doneYmd > dueYmd) ymd = doneYmd;
+    } else if (dueYmd < todayYmd) {
+      // Late and still open: shown on today's column (the nightly job moves the real date).
+      if (todayYmd < rangeStartYmd || todayYmd > rangeEndYmd) {
+        overdue.push(t);
+        continue;
+      }
+      ymd = todayYmd;
     }
     if (ymd < rangeStartYmd || ymd > rangeEndYmd) continue; // outside the visible window
     const list = byDay.get(ymd) ?? [];
@@ -132,6 +142,21 @@ export function bucketizeTasks<T extends TaskBucketInput>(
   }
 
   return { overdue: sortDayTasks(overdue), noDate: sortDayTasks(noDate), days };
+}
+
+/**
+ * The day an open task was originally due, when it is late: either it is
+ * still dated in the past, or the nightly job already rolled it forward
+ * (overdueSince keeps the first missed day). null when it is not late.
+ */
+export function lateSinceYmd(
+  t: { status: string; dueDate: Date | null; overdueSince: Date | null },
+  todayYmd: string,
+): string | null {
+  if (t.status === "done") return null;
+  if (t.overdueSince && (!t.dueDate || ymdInTz(t.dueDate) <= todayYmd)) return ymdInTz(t.overdueSince);
+  if (t.dueDate && ymdInTz(t.dueDate) < todayYmd) return ymdInTz(t.dueDate);
+  return null;
 }
 
 /** Visual "lightness" step for a postponed task's card, capped. */

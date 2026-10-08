@@ -3,6 +3,7 @@
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
+import { formatShortDay } from "@/lib/datetime";
 import { postponementOpacityClass } from "@/lib/services/tasks";
 import { getTaskDetailAction, toggleTaskCompleteAction, type TaskDetail } from "@/server/task-actions";
 import { TaskCompletionCircle } from "./TaskCompletionCircle";
@@ -20,6 +21,8 @@ export interface TaskCardData {
   status: string;
   postponementCount: number;
   priority: number;
+  /** "YYYY-MM-DD" the task was originally due, when it is late and still open. */
+  lateSince: string | null;
   completedBy: { id: string; name: string | null; email: string } | null;
   project: { id: string; name: string } | null;
   assignees: { id: string; name: string | null; email: string; role: string }[];
@@ -49,6 +52,7 @@ export function TaskCard({
   const [toggling, startToggleTransition] = useTransition();
   const [doneOverride, setDoneOverride] = useState<boolean | null>(null);
   const done = doneOverride ?? task.status === "done";
+  const late = !done && task.lateSince !== null;
   const [dragging, setDragging] = useState(false);
 
   function fetchDetail() {
@@ -91,7 +95,11 @@ export function TaskCard({
           setDragging(true);
         }}
         onDragEnd={() => setDragging(false)}
-        className={`${dragging ? "opacity-40" : ""} flex cursor-grab active:cursor-grabbing flex-col gap-1.5 rounded-lg border border-border bg-surface-2 p-2.5 transition-colors hover:border-accent/40 hover:bg-surface ${postponementOpacityClass(task.postponementCount)} ${done ? "bg-surface" : ""}`}
+        className={`${dragging ? "opacity-40" : ""} flex cursor-grab active:cursor-grabbing flex-col gap-1.5 rounded-lg border p-2.5 transition-colors hover:border-accent/40 ${
+          late
+            ? "border-warning/30 bg-warning/10 hover:bg-warning/15"
+            : `border-border bg-surface-2 hover:bg-surface ${postponementOpacityClass(task.postponementCount)} ${done ? "bg-surface" : ""}`
+        }`}
       >
         <div className="flex items-start gap-2">
           <div className="mt-0.5">
@@ -102,6 +110,14 @@ export function TaskCard({
           </span>
           <TaskPriorityBadge priority={task.priority} />
         </div>
+
+        {late && task.lateSince && (
+          <div className="flex justify-end">
+            <span className="rounded-full border border-warning/40 bg-warning/15 px-2 py-0.5 text-[11px] font-medium text-warning">
+              متأخرة من {formatShortDay(task.lateSince)}
+            </span>
+          </div>
+        )}
 
         {task.description && (
           <p className="truncate pr-7 text-xs text-foreground-muted">{task.description}</p>

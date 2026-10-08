@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bucketizeTasks, parseTaskForm, parseTaskPriority, shiftYmd } from "./tasks";
+import { bucketizeTasks, lateSinceYmd, parseTaskForm, parseTaskPriority, shiftYmd } from "./tasks";
 
 const at = (iso: string) => new Date(iso);
 const task = (id: string, dueDate: Date | null, priority = 0, status = "todo") => ({
@@ -56,8 +56,8 @@ test("no-date and overdue columns are sorted by priority too", () => {
       task("o2", at("2026-10-02T10:00:00Z"), 9),
     ],
     "2026-10-05",
-    "2026-10-05",
-    "2026-10-06",
+    "2026-10-06", // today is outside the window, so late tasks fall back to the overdue list
+    "2026-10-07",
   );
   assert.deepEqual(noDate.map((t) => t.id), ["n1", "n2"]);
   assert.deepEqual(overdue.map((t) => t.id), ["o1", "o2"]);
@@ -73,4 +73,40 @@ test("a task at 23:30 UTC lands on the next Cairo day", () => {
   );
   assert.equal(days.find((d) => d.ymd === "2026-10-06")?.tasks.length, 1);
   assert.equal(days.find((d) => d.ymd === "2026-10-05")?.tasks.length, 0);
+});
+
+test("an open task from a past day shows on today's column, not in a separate overdue list", () => {
+  const { overdue, days } = bucketizeTasks(
+    [task("late", at("2026-10-03T10:00:00Z"))],
+    "2026-10-05",
+    "2026-10-05",
+    "2026-10-07",
+    true,
+  );
+  assert.equal(overdue.length, 0);
+  assert.deepEqual(days.find((d) => d.ymd === "2026-10-05")?.tasks.map((t) => t.id), ["late"]);
+});
+
+test("a late task that was finished stays findable on the day it was finished", () => {
+  const done = { ...task("d", at("2026-10-03T10:00:00Z"), 0, "done"), completedAt: at("2026-10-05T09:00:00Z") };
+  const { days } = bucketizeTasks([done], "2026-10-05", "2026-10-05", "2026-10-07", true);
+  assert.deepEqual(days.find((d) => d.ymd === "2026-10-05")?.tasks.map((t) => t.id), ["d"]);
+});
+
+test("a task finished early stays on its due day", () => {
+  const done = { ...task("e", at("2026-10-07T10:00:00Z"), 0, "done"), completedAt: at("2026-10-05T09:00:00Z") };
+  const { days } = bucketizeTasks([done], "2026-10-05", "2026-10-05", "2026-10-07", true);
+  assert.deepEqual(days.find((d) => d.ymd === "2026-10-07")?.tasks.map((t) => t.id), ["e"]);
+});
+
+test("lateSinceYmd reports the first missed day, before and after the nightly roll", () => {
+  const today = "2026-10-05";
+  assert.equal(lateSinceYmd({ status: "todo", dueDate: at("2026-10-03T10:00:00Z"), overdueSince: null }, today), "2026-10-03");
+  assert.equal(
+    lateSinceYmd({ status: "todo", dueDate: at("2026-10-05T10:00:00Z"), overdueSince: at("2026-10-03T10:00:00Z") }, today),
+    "2026-10-03",
+  );
+  assert.equal(lateSinceYmd({ status: "done", dueDate: at("2026-10-03T10:00:00Z"), overdueSince: null }, today), null);
+  assert.equal(lateSinceYmd({ status: "todo", dueDate: at("2026-10-08T10:00:00Z"), overdueSince: at("2026-10-03T10:00:00Z") }, today), null);
+  assert.equal(lateSinceYmd({ status: "todo", dueDate: at("2026-10-05T10:00:00Z"), overdueSince: null }, today), null);
 });

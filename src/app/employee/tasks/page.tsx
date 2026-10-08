@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { ymdInTz, zonedInputToUtc } from "@/lib/datetime";
-import { bucketizeTasks, shiftYmd } from "@/lib/services/tasks";
+import { bucketizeTasks, lateSinceYmd, shiftYmd } from "@/lib/services/tasks";
 import { getAssignableUsers } from "@/lib/services/assignees";
 import { TaskCard } from "@/components/tasks/TaskCard";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
@@ -57,6 +57,13 @@ export default async function EmployeeTasksPage({
               lte: zonedInputToUtc(`${rangeEnd}T23:59`)!,
             },
           },
+          // Tasks finished late are shown on the day they were finished.
+          {
+            completedAt: {
+              gte: zonedInputToUtc(`${from}T00:00`)!,
+              lte: zonedInputToUtc(`${rangeEnd}T23:59`)!,
+            },
+          },
         ],
       },
       orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
@@ -96,6 +103,7 @@ export default async function EmployeeTasksPage({
           postponementCount: t.postponementCount,
           priority: t.priority,
           completedBy: t.completer,
+          lateSince: lateSinceYmd(t, today),
           project: t.project,
           assignees: t.assignees.map((a) => a.user),
         }}

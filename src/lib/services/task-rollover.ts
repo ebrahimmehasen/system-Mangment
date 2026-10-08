@@ -33,7 +33,7 @@ export async function rolloverOverdueTasks(): Promise<{ rolledTasks: number; tot
 
   const candidates = await prisma.task.findMany({
     where: { status: { not: "done" }, dueDate: { lt: new Date() } },
-    select: { id: true, dueDate: true },
+    select: { id: true, dueDate: true, overdueSince: true },
   });
 
   let rolledTasks = 0;
@@ -63,7 +63,12 @@ export async function rolloverOverdueTasks(): Promise<{ rolledTasks: number; tot
 
       await tx.task.update({
         where: { id: t.id },
-        data: { dueDate: due, postponementCount: { increment: steps } },
+        data: {
+          dueDate: due,
+          postponementCount: { increment: steps },
+          // Remember the first missed day so the card can say "late since …".
+          overdueSince: t.overdueSince ?? t.dueDate,
+        },
       });
       for (const tr of transitions) {
         await writeAuditLog(

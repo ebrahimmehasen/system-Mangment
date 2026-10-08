@@ -71,6 +71,11 @@ const shortDayFmt = new Intl.DateTimeFormat("ar-EG", {
 });
 const weekdayFmt = new Intl.DateTimeFormat("ar-EG", { timeZone: APP_TZ, weekday: "long" });
 
+/** "YYYY-MM-DD" -> "30 سبتمبر". */
+export function formatShortDay(ymd: string): string {
+  return shortDayFmt.format(new Date(`${ymd}T12:00:00Z`));
+}
+
 /** Board column header: "اليوم" / "غداً" / weekday name, plus "day month". */
 export function formatColumnHeader(ymd: string, todayYmd: string): { relative: string; date: string } {
   const tomorrowYmd = new Date(`${todayYmd}T12:00:00Z`);

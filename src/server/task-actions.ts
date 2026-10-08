@@ -116,6 +116,7 @@ export async function updateTaskStatusAction(
         status: status as TaskStatus,
         completedAt: becameDone ? new Date() : reopened ? null : undefined,
         completedById: becameDone ? user.id : reopened ? null : undefined,
+        overdueSince: becameDone ? null : undefined,
       },
     });
     await writeAuditLog(
@@ -169,6 +170,7 @@ export async function updateTaskAction(
         projectId: values.projectId || null,
         dueDate: parsed.dueDateUtc,
         priority: parsed.priority,
+        ...(existing.dueDate?.getTime() !== parsed.dueDateUtc?.getTime() ? { overdueSince: null } : {}),
       },
     });
     await tx.taskAssignee.deleteMany({ where: { taskId } });
@@ -288,7 +290,7 @@ export async function moveTaskToDayAction(
   if ((task.dueDate?.getTime() ?? null) === (dueDate?.getTime() ?? null)) return {};
 
   await prisma.$transaction(async (tx) => {
-    await tx.task.update({ where: { id: taskId }, data: { dueDate } });
+    await tx.task.update({ where: { id: taskId }, data: { dueDate, overdueSince: null } });
     await writeAuditLog(
       {
         userId: user.id,

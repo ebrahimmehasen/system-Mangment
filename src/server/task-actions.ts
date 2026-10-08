@@ -4,9 +4,9 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { requireUser, requireAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
-import { parseTaskForm, parseTaskPriority, TASK_STATUSES, type TaskStatus } from "@/lib/services/tasks";
+import { parseTaskForm, TASK_STATUSES, type TaskStatus } from "@/lib/services/tasks";
 import { actionLabel } from "@/lib/audit-labels";
-import { utcToZonedInput, zonedInputToUtc } from "@/lib/datetime";
+import { utcToZonedInput, ymdInTz, zonedInputToUtc } from "@/lib/datetime";
 
 export interface TaskActionState {
   error?: string;
@@ -63,6 +63,7 @@ export async function createTaskAction(
         description: values.description || null,
         projectId,
         dueDate: parsed.dueDateUtc,
+        priority: parsed.priority,
         createdBy: user.id,
         assignees: { create: assigneeIds.map((userId) => ({ userId })) },
       },
@@ -114,6 +115,7 @@ export async function updateTaskStatusAction(
       data: {
         status: status as TaskStatus,
         completedAt: becameDone ? new Date() : reopened ? null : undefined,
+        completedById: becameDone ? user.id : reopened ? null : undefined,
       },
     });
     await writeAuditLog(
@@ -166,6 +168,7 @@ export async function updateTaskAction(
         description: values.description || null,
         projectId: values.projectId || null,
         dueDate: parsed.dueDateUtc,
+        priority: parsed.priority,
       },
     });
     await tx.taskAssignee.deleteMany({ where: { taskId } });
@@ -178,8 +181,8 @@ export async function updateTaskAction(
         action: "updated",
         entity: "task",
         entityId: taskId,
-        oldValue: { title: existing.title },
-        newValue: { title: values.title, assigneeIds },
+        oldValue: { title: existing.title, priority: existing.priority },
+        newValue: { title: values.title, assigneeIds, priority: parsed.priority },
       },
       tx,
     );
@@ -257,38 +260,6 @@ async function loadEditableTask(taskId: string, user: { id: string; role: string
   return { task } as const;
 }
 
-/** Sets a task's priority (0/blank = none, 1..99, higher = shown first in its column). */
-export async function setTaskPriorityAction(
-  taskId: string,
-  priority: string | number,
-): Promise<{ error?: string; priority?: number }> {
-  const user = await requireUser();
-  const value = parseTaskPriority(priority);
-  if (value === null) return { error: "الأولوية لازم تكون رقم من 1 لـ 99." };
-
-  const res = await loadEditableTask(taskId, user);
-  if ("error" in res) return { error: res.error };
-  if (res.task.priority === value) return { priority: value };
-
-  await prisma.$transaction(async (tx) => {
-    await tx.task.update({ where: { id: taskId }, data: { priority: value } });
-    await writeAuditLog(
-      {
-        userId: user.id,
-        action: "updated",
-        entity: "task",
-        entityId: taskId,
-        oldValue: { priority: res.task.priority },
-        newValue: { priority: value },
-      },
-      tx,
-    );
-  });
-
-  revalidateTaskPaths();
-  return { priority: value };
-}
-
 /**
  * Drag-and-drop: moves a task to another board column. `ymd` is a Cairo
  * calendar day ("YYYY-MM-DD") or null for "بدون موعد". Keeps the task's
@@ -300,6 +271,8 @@ export async function moveTaskToDayAction(
 ): Promise<{ error?: string }> {
   const user = await requireUser();
   if (ymd !== null && !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return { error: "تاريخ غير صالح." };
+
+  if (ymd !== null && ymd < ymdInTz(new Date())) return { error: "تقدر تنقل المهمة لليوم أو لأيام جاية بس." };
 
   const res = await loadEditableTask(taskId, user);
   if ("error" in res) return { error: res.error };
@@ -388,15 +361,18 @@ async function swapAssignee(
   return null;
 }
 
-/** Admin-only, immediate: removes fromUserId as assignee, adds toUserId. */
+/**
+ * Admin, immediate: hands the admin's OWN share of a task to someone else.
+ * An admin can only forward a task they are themself assigned to, and only
+ * as themself — never on behalf of another assignee.
+ */
 export async function adminForwardTaskAction(
   taskId: string,
-  fromUserId: string,
   toUserId: string,
 ): Promise<{ error?: string }> {
   const admin = await requireAdmin();
 
-  const err = await swapAssignee(taskId, fromUserId, toUserId);
+  const err = await swapAssignee(taskId, admin.id, toUserId);
   if (err) return err;
 
   await writeAuditLog({
@@ -404,7 +380,7 @@ export async function adminForwardTaskAction(
     action: "updated",
     entity: "task",
     entityId: taskId,
-    newValue: { forwardedFrom: fromUserId, forwardedTo: toUserId, by: "admin" },
+    newValue: { forwardedFrom: admin.id, forwardedTo: toUserId, by: "admin" },
   });
 
   revalidateTaskPaths();
@@ -497,6 +473,7 @@ export interface TaskDetail {
   completedAt: string | null;
   postponementCount: number;
   priority: number;
+  completedBy: { id: string; name: string | null; email: string } | null;
   createdAt: string;
   project: { id: string; name: string } | null;
   creator: { name: string | null; email: string } | null;
@@ -519,6 +496,7 @@ export async function getTaskDetailAction(taskId: string): Promise<{ error?: str
     include: {
       project: { select: { id: true, name: true } },
       creator: { select: { name: true, email: true } },
+      completer: { select: { id: true, name: true, email: true } },
       assignees: { include: { user: { select: { id: true, name: true, email: true, role: true } } } },
     },
   });
@@ -544,6 +522,7 @@ export async function getTaskDetailAction(taskId: string): Promise<{ error?: str
       completedAt: task.completedAt?.toISOString() ?? null,
       postponementCount: task.postponementCount,
       priority: task.priority,
+      completedBy: task.completer,
       createdAt: task.createdAt.toISOString(),
       project: task.project,
       creator: task.creator,

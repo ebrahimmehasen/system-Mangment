@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { TextField, TextAreaField, SelectField } from "@/components/ui/Field";
 import { createTaskAction, type TaskActionState } from "@/server/task-actions";
+import { TaskPriorityField } from "@/components/tasks/TaskPriorityField";
 
 export function EmployeeTaskFormModal({
   projects,
@@ -73,6 +74,8 @@ export function EmployeeTaskFormModal({
               error={fe.dueDate}
             />
           </div>
+
+          <TaskPriorityField defaultValue={Number(v("priority")) || 0} error={fe.priority} />
 
           {state.error && (
             <p className="rounded-md bg-danger/10 px-3 py-2 text-sm text-danger">{state.error}</p>

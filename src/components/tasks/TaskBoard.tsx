@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { BoardScroller } from "./BoardScroller";
 import { TaskDayColumn } from "./TaskDayColumn";
 
 export interface BoardTask {
@@ -20,7 +21,7 @@ export function TaskBoard<T extends BoardTask>({
   renderTask: (task: T) => ReactNode;
 }) {
   return (
-    <div className="no-scrollbar flex gap-3 overflow-x-auto pb-2">
+    <BoardScroller>
       {overdue.length > 0 && (
         <TaskDayColumn
           ymd={todayYmd}
@@ -46,11 +47,11 @@ export function TaskBoard<T extends BoardTask>({
           todayYmd={todayYmd}
           count={day.tasks.length}
           quickAddDueDate={`${day.ymd}T12:00`}
-          dropYmd={day.ymd}
+          dropYmd={day.ymd >= todayYmd ? day.ymd : undefined}
         >
           {day.tasks.map(renderTask)}
         </TaskDayColumn>
       ))}
-    </div>
+    </BoardScroller>
   );
 }

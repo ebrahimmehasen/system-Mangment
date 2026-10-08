@@ -7,15 +7,12 @@ import { Modal } from "@/components/ui/Modal";
 import { SelectField } from "@/components/ui/Field";
 import { adminForwardTaskAction } from "@/server/task-actions";
 
+/** Admin hands THEIR OWN share of a task to someone else (rendered only on tasks the admin is assigned to). */
 export function ForwardAssigneeButton({
   taskId,
-  fromUserId,
-  fromLabel,
   candidates,
 }: {
   taskId: string;
-  fromUserId: string;
-  fromLabel: string;
   candidates: { id: string; label: string }[];
 }) {
   const router = useRouter();
@@ -24,8 +21,6 @@ export function ForwardAssigneeButton({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const options = candidates.filter((c) => c.id !== fromUserId);
-
   function submit() {
     if (!toUserId) {
       setError("اختار الشخص اللي هتفروورد له.");
@@ -33,7 +28,7 @@ export function ForwardAssigneeButton({
     }
     setError(null);
     startTransition(async () => {
-      const res = await adminForwardTaskAction(taskId, fromUserId, toUserId);
+      const res = await adminForwardTaskAction(taskId, toUserId);
       if (res?.error) setError(res.error);
       else {
         setOpen(false);
@@ -53,15 +48,15 @@ export function ForwardAssigneeButton({
         فروردة
       </button>
 
-      <Modal open={open} onClose={() => setOpen(false)} title={`فروردة مهمة من ${fromLabel}`}>
+      <Modal open={open} onClose={() => setOpen(false)} title="فروردة المهمة">
         <SelectField
-          id={`forward-to-${taskId}-${fromUserId}`}
+          id={`forward-to-${taskId}`}
           label="لمين؟"
           value={toUserId}
           onChange={(e) => setToUserId(e.target.value)}
         >
           <option value="">— اختر —</option>
-          {options.map((o) => (
+          {candidates.map((o) => (
             <option key={o.id} value={o.id}>
               {o.label}
             </option>

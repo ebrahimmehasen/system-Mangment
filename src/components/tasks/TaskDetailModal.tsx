@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { SelectField, TextField } from "@/components/ui/Field";
 import { formatDateTime, utcToZonedInput } from "@/lib/datetime";
 import { TASK_STATUS_LABELS, type TaskStatus } from "@/lib/services/tasks";
-import { TaskPriorityInput } from "./TaskPriorityInput";
+import { TaskPriorityBadge } from "./TaskPriorityBadge";
 import { updateTaskDetailsAction, type TaskDetail } from "@/server/task-actions";
 
 /** The initial fetch (on the click that opens this) is owned by the caller
@@ -82,17 +82,17 @@ export function TaskDetailModal({
             {!canEdit && <Info label="المشروع" value={detail.project?.name || "—"} />}
             <Info label="مرات التأجيل" value={String(detail.postponementCount)} />
             <div>
-              <dt className="text-xs text-foreground-muted">الأولوية (1–99)</dt>
+              <dt className="text-xs text-foreground-muted">الأولوية</dt>
               <dd className="mt-0.5">
-                <TaskPriorityInput
-                  key={`${detail.id}-${detail.priority}`}
-                  taskId={detail.id}
-                  priority={detail.priority}
-                  onSaved={onSaved}
-                  className="h-7 w-16 text-sm"
-                />
+                {detail.priority > 0 ? <TaskPriorityBadge priority={detail.priority} showLabel /> : "—"}
               </dd>
             </div>
+            {detail.status === "done" && (
+              <Info
+                label="أتمّها"
+                value={detail.completedBy ? detail.completedBy.name || detail.completedBy.email : "—"}
+              />
+            )}
           </dl>
 
           <div>

@@ -80,6 +80,7 @@ model User {
   clientSubmissionsReviewed ClientSubmission[]    @relation("ClientSubmissionReviewedBy")
 
   tasksCreated         Task[]               @relation("TaskCreatedBy")
+  tasksCompleted       Task[]               @relation("TaskCompletedBy")
   taskAssignments      TaskAssignee[]       @relation("TaskAssignedTo")
   taskForwardsSent     TaskForwardRequest[] @relation("TaskForwardFrom")
   taskForwardsReceived TaskForwardRequest[] @relation("TaskForwardTo")
@@ -774,14 +775,17 @@ model Task {
   status            TaskStatus @default(todo)
   completedAt       DateTime?  @map("completed_at")
   postponementCount Int        @default(0) @map("postponement_count")
-  /// 0 = no priority; 1..99, higher = more important (sorts first within a column).
+  /// 0 = no priority; 1..99, 1 = most important (sorts first within a column), 99 = least.
   priority          Int        @default(0)
+  /// Who actually marked the task done (one of the assignees, or an admin).
+  completedById     String?    @map("completed_by") @db.Uuid
   createdBy         String?    @map("created_by") @db.Uuid
   createdAt         DateTime   @default(now()) @map("created_at")
   updatedAt         DateTime   @updatedAt @map("updated_at")
 
   project         Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
   creator         User?                @relation("TaskCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  completer       User?                @relation("TaskCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
   assignees       TaskAssignee[]
   forwardRequests TaskForwardRequest[]
 

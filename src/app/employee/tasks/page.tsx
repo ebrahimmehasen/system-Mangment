@@ -8,6 +8,7 @@ import { getAssignableUsers } from "@/lib/services/assignees";
 import { TaskCard } from "@/components/tasks/TaskCard";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
 import { TaskDateNav } from "@/components/tasks/TaskDateNav";
+import { TaskFilters } from "@/components/tasks/TaskFilters";
 import { RequestForwardButton } from "@/components/tasks/RequestForwardButton";
 import { DeleteTaskButton } from "@/components/tasks/DeleteTaskButton";
 import { EmployeeTaskFormModal } from "./EmployeeTaskFormModal";
@@ -29,7 +30,7 @@ const FORWARD_STATUS_TONE: Record<string, "neutral" | "success" | "danger"> = {
 export default async function EmployeeTasksPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string }>;
+  searchParams: Promise<{ from?: string; project?: string; user?: string }>;
 }) {
   const me = await requireUser();
   const sp = await searchParams;
@@ -43,7 +44,11 @@ export default async function EmployeeTasksPage({
   const [tasks, myProjects, assignees, myForwardRequests] = await Promise.all([
     prisma.task.findMany({
       where: {
-        assignees: { some: { userId: me.id } },
+        ...(sp.project ? { projectId: sp.project } : {}),
+        AND: [
+          { assignees: { some: { userId: me.id } } },
+          ...(sp.user ? [{ assignees: { some: { userId: sp.user } } }] : []),
+        ],
         OR: [
           { dueDate: null },
           {
@@ -58,6 +63,7 @@ export default async function EmployeeTasksPage({
       include: {
         project: { select: { id: true, name: true } },
         creator: { select: { name: true, email: true } },
+        completer: { select: { id: true, name: true, email: true } },
         assignees: { include: { user: { select: { id: true, name: true, email: true, role: true } } } },
       },
     }),
@@ -89,6 +95,7 @@ export default async function EmployeeTasksPage({
           status: t.status,
           postponementCount: t.postponementCount,
           priority: t.priority,
+          completedBy: t.completer,
           project: t.project,
           assignees: t.assignees.map((a) => a.user),
         }}
@@ -113,7 +120,10 @@ export default async function EmployeeTasksPage({
       </div>
 
       <Card>
-        <TaskDateNav basePath="/employee/tasks" from={from} />
+        <div className="flex flex-col gap-3">
+          <TaskDateNav basePath="/employee/tasks" from={from} />
+          <TaskFilters basePath="/employee/tasks" projects={projectOptions} people={assignees} />
+        </div>
       </Card>
 
       <TaskBoard overdue={overdue} noDate={noDate} days={days} todayYmd={today} renderTask={renderTask} />

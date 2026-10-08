@@ -2,13 +2,14 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/Card";
-import { ymdInTz, zonedInputToUtc } from "@/lib/datetime";
+import { utcToZonedInput, ymdInTz, zonedInputToUtc } from "@/lib/datetime";
 import { bucketizeTasks, shiftYmd } from "@/lib/services/tasks";
 import { getAssignableUsers } from "@/lib/services/assignees";
 import { createTaskAction, updateTaskAction } from "@/server/task-actions";
 import { TaskCard } from "@/components/tasks/TaskCard";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
 import { TaskDateNav } from "@/components/tasks/TaskDateNav";
+import { TaskFilters } from "@/components/tasks/TaskFilters";
 import { DeleteTaskButton } from "@/components/tasks/DeleteTaskButton";
 import { TaskFormModal } from "./TaskFormModal";
 import { ForwardAssigneeButton } from "./ForwardAssigneeButton";
@@ -35,10 +36,12 @@ export default async function TasksPage({
   const [tasks, pendingRequests, projects, assignees] = await Promise.all([
     prisma.task.findMany({
       where: {
-        ...(tab === "mine" ? { assignees: { some: { userId: me.id } } } : {}),
         ...(status === "pending" ? { status: { not: "done" } } : status === "done" ? { status: "done" } : {}),
         ...(sp.project ? { projectId: sp.project } : {}),
-        ...(sp.user ? { assignees: { some: { userId: sp.user } } } : {}),
+        AND: [
+          ...(tab === "mine" ? [{ assignees: { some: { userId: me.id } } }] : []),
+          ...(sp.user ? [{ assignees: { some: { userId: sp.user } } }] : []),
+        ],
         OR: [
           { dueDate: null },
           {
@@ -53,6 +56,7 @@ export default async function TasksPage({
       include: {
         project: { select: { id: true, name: true } },
         creator: { select: { name: true, email: true } },
+        completer: { select: { id: true, name: true, email: true } },
         assignees: { include: { user: { select: { id: true, name: true, email: true, role: true } } } },
       },
     }),
@@ -95,6 +99,7 @@ export default async function TasksPage({
           status: t.status,
           postponementCount: t.postponementCount,
           priority: t.priority,
+          completedBy: t.completer,
           project: t.project,
           assignees: t.assignees.map((a) => a.user),
         }}
@@ -111,21 +116,16 @@ export default async function TasksPage({
                 title: t.title,
                 description: t.description,
                 projectId: t.projectId,
-                dueDate: t.dueDate ? t.dueDate.toISOString().slice(0, 16) : "",
+                dueDate: t.dueDate ? utcToZonedInput(t.dueDate) : "",
+                priority: t.priority,
                 assigneeIds: t.assignees.map((a) => a.userId),
               }}
               triggerLabel="تعديل"
               triggerVariant="secondary"
             />
-            {t.assignees.map((a) => (
-              <ForwardAssigneeButton
-                key={a.id}
-                taskId={t.id}
-                fromUserId={a.userId}
-                fromLabel={a.user.name || a.user.email}
-                candidates={assignees}
-              />
-            ))}
+            {t.assignees.some((a) => a.userId === me.id) && (
+              <ForwardAssigneeButton taskId={t.id} candidates={assignees.filter((a) => a.id !== me.id)} />
+            )}
             <DeleteTaskButton taskId={t.id} title={t.title} />
           </>
         }
@@ -152,6 +152,7 @@ export default async function TasksPage({
       <Card>
         <div className="flex flex-col gap-3">
           <TaskDateNav basePath="/tasks" from={from} />
+          <TaskFilters basePath="/tasks" projects={projects} people={assignees} />
           <div className="flex flex-wrap gap-2">
             {[
               { key: "all", label: "الكل" },

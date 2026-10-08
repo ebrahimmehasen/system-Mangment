@@ -7,7 +7,7 @@ import { postponementOpacityClass } from "@/lib/services/tasks";
 import { getTaskDetailAction, toggleTaskCompleteAction, type TaskDetail } from "@/server/task-actions";
 import { TaskCompletionCircle } from "./TaskCompletionCircle";
 import { TaskDetailModal } from "./TaskDetailModal";
-import { TaskPriorityInput } from "./TaskPriorityInput";
+import { TaskPriorityBadge } from "./TaskPriorityBadge";
 
 /** dataTransfer type used by drag-and-drop between board columns. */
 export const TASK_DRAG_TYPE = "application/x-task-id";
@@ -20,6 +20,7 @@ export interface TaskCardData {
   status: string;
   postponementCount: number;
   priority: number;
+  completedBy: { id: string; name: string | null; email: string } | null;
   project: { id: string; name: string } | null;
   assignees: { id: string; name: string | null; email: string; role: string }[];
 }
@@ -99,11 +100,17 @@ export function TaskCard({
           <span className={`min-w-0 flex-1 text-sm ${done ? "text-foreground-muted line-through" : "text-foreground"}`}>
             {task.title}
           </span>
-          <TaskPriorityInput key={task.priority} taskId={task.id} priority={task.priority} />
+          <TaskPriorityBadge priority={task.priority} />
         </div>
 
         {task.description && (
           <p className="truncate pr-7 text-xs text-foreground-muted">{task.description}</p>
+        )}
+
+        {done && task.completedBy && (
+          <p className="pr-7 text-xs text-success">
+            ✓ أتمّها: {task.completedBy.name || task.completedBy.email}
+          </p>
         )}
 
         {(task.project || task.assignees.length > 0 || task.postponementCount > 0) && (
@@ -114,12 +121,15 @@ export function TaskCard({
             {task.assignees.map((a) => (
               <span
                 key={a.id}
-                className="inline-flex items-center gap-1 rounded-full bg-surface px-1.5 py-0.5"
+                className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 ${
+                  done && task.completedBy?.id === a.id ? "bg-success/15 text-success" : "bg-surface"
+                }`}
               >
                 <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-accent/20 text-[9px] text-accent">
                   {(a.name || a.email).charAt(0)}
                 </span>
                 {a.name || a.email}
+                {done && task.completedBy?.id === a.id && " ✓"}
               </span>
             ))}
             {task.postponementCount > 0 && (

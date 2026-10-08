@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { TextField, TextAreaField, SelectField } from "@/components/ui/Field";
 import { type TaskActionState } from "@/server/task-actions";
+import { TaskPriorityField } from "@/components/tasks/TaskPriorityField";
 
 export interface TaskDefaults {
   title?: string;
   description?: string | null;
   projectId?: string | null;
   dueDate?: string; // datetime-local
+  priority?: number;
   assigneeIds?: string[];
 }
 
@@ -122,6 +124,8 @@ export function TaskFormModal({
               error={fe.dueDate}
             />
           </div>
+
+          <TaskPriorityField defaultValue={Number(v("priority")) || 0} error={fe.priority} />
 
           <div>
             <label className="mb-1.5 block text-sm text-foreground-muted">معيّن عليها</label>

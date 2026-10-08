@@ -24,15 +24,15 @@ test("shiftYmd crosses month boundaries", () => {
   assert.equal(shiftYmd("2026-10-01", -1), "2026-09-30");
 });
 
-test("a column orders open tasks by priority desc, done tasks last", () => {
+test("a column orders open tasks 1 (most important) first, no-priority after, done last", () => {
   const due = at("2026-10-05T10:00:00Z");
   const { days } = bucketizeTasks(
-    [task("low", due, 5), task("done-high", due, 99, "done"), task("high", due, 50), task("none", due, 0)],
+    [task("b", due, 5), task("done1", due, 1, "done"), task("a", due, 2), task("none", due, 0)],
     "2026-10-05",
     "2026-10-05",
     "2026-10-05",
   );
-  assert.deepEqual(days[0].tasks.map((t) => t.id), ["high", "low", "none", "done-high"]);
+  assert.deepEqual(days[0].tasks.map((t) => t.id), ["a", "b", "none", "done1"]);
 });
 
 test("no-date and overdue columns are sorted by priority too", () => {
@@ -47,8 +47,8 @@ test("no-date and overdue columns are sorted by priority too", () => {
     "2026-10-05",
     "2026-10-06",
   );
-  assert.deepEqual(noDate.map((t) => t.id), ["n2", "n1"]);
-  assert.deepEqual(overdue.map((t) => t.id), ["o2", "o1"]);
+  assert.deepEqual(noDate.map((t) => t.id), ["n1", "n2"]);
+  assert.deepEqual(overdue.map((t) => t.id), ["o1", "o2"]);
 });
 
 test("a task at 23:30 UTC lands on the next Cairo day", () => {

@@ -14,18 +14,20 @@ export interface TaskFormValues {
   description: string;
   projectId: string;
   dueDate: string; // datetime-local (Cairo wall clock), optional
+  priority: string; // "" / 0 = none, 1 = most important … 99 = least
 }
 
 export function parseTaskForm(formData: FormData): {
   values: TaskFormValues;
   errors: Record<string, string>;
-  parsed: { dueDateUtc: Date | null };
+  parsed: { dueDateUtc: Date | null; priority: number };
 } {
   const values: TaskFormValues = {
     title: String(formData.get("title") ?? "").trim(),
     description: String(formData.get("description") ?? "").trim(),
     projectId: String(formData.get("projectId") ?? "").trim(),
     dueDate: String(formData.get("dueDate") ?? "").trim(),
+    priority: String(formData.get("priority") ?? "").trim(),
   };
 
   const errors: Record<string, string> = {};
@@ -38,7 +40,10 @@ export function parseTaskForm(formData: FormData): {
     if (!dueDateUtc) errors.dueDate = "أدخل تاريخًا ووقتًا صحيحين.";
   }
 
-  return { values, errors, parsed: { dueDateUtc } };
+  const priority = parseTaskPriority(values.priority);
+  if (priority === null) errors.priority = "الأولوية لازم تكون رقم من 1 لـ 99.";
+
+  return { values, errors, parsed: { dueDateUtc, priority: priority ?? 0 } };
 }
 
 /** "YYYY-MM-DD" -> "YYYY-MM-DD" + n days, plain calendar-day math (no TZ conversion needed on a date-only string). */
@@ -66,10 +71,15 @@ export interface TaskBucketInput {
   priority: number;
 }
 
-/** Board order inside one column: open before done, then higher priority first, then earlier due time. */
+/** 1 (most important) sorts first … 99 last; 0 = no priority sorts after everything. */
+function priorityRank(p: number): number {
+  return p > 0 ? p : TASK_PRIORITY_MAX + 1;
+}
+
+/** Board order inside one column: open before done, then most important priority first, then earlier due time. */
 function compareTasks(a: TaskBucketInput, b: TaskBucketInput): number {
   if ((a.status === "done") !== (b.status === "done")) return a.status === "done" ? 1 : -1;
-  if (a.priority !== b.priority) return b.priority - a.priority;
+  if (a.priority !== b.priority) return priorityRank(a.priority) - priorityRank(b.priority);
   return (a.dueDate?.getTime() ?? 0) - (b.dueDate?.getTime() ?? 0);
 }
 

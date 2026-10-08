@@ -5,18 +5,21 @@ export function TaskCompletionCircle({
   done,
   onClick,
   disabled,
+  title,
 }: {
   done: boolean;
   onClick: (e: React.MouseEvent) => void;
   disabled?: boolean;
+  title?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
+      title={title}
       aria-label={done ? "إعادة فتح المهمة" : "إتمام المهمة"}
-      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors disabled:opacity-50 ${
+      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors disabled:opacity-50 ${disabled ? "cursor-not-allowed" : ""} ${
         done ? "border-success bg-success text-white" : "border-border hover:border-accent"
       }`}
     >

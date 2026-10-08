@@ -105,6 +105,10 @@ export async function updateTaskStatusAction(
     return { error: "إنت مش معيّن على المهمة دي." };
   }
   if (task.status === status) return {};
+  // Only the person who completed a task can take the completion back.
+  if (task.status === "done" && task.completedById && task.completedById !== user.id) {
+    return { error: "اللي أتمّ المهمة هو بس اللي يقدر يلغي إتمامها." };
+  }
 
   const becameDone = status === "done" && task.status !== "done";
   const reopened = status !== "done" && task.status === "done";

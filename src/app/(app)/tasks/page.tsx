@@ -98,6 +98,7 @@ export default async function TasksPage({
     return (
       <TaskCard
         key={t.id}
+        currentUserId={me.id}
         task={{
           id: t.id,
           title: t.title,

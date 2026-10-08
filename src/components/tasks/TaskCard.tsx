@@ -30,11 +30,13 @@ export interface TaskCardData {
 
 export function TaskCard({
   task,
+  currentUserId,
   actions,
   canEditDetails = false,
   projects = [],
 }: {
   task: TaskCardData;
+  currentUserId: string;
   actions?: ReactNode;
   /** Admin-only: lets the details modal edit project/completion date. */
   canEditDetails?: boolean;
@@ -52,6 +54,8 @@ export function TaskCard({
   const [toggling, startToggleTransition] = useTransition();
   const [doneOverride, setDoneOverride] = useState<boolean | null>(null);
   const done = doneOverride ?? task.status === "done";
+  // A finished task can be reopened only by the person who finished it.
+  const lockedByOther = done && task.completedBy !== null && task.completedBy.id !== currentUserId;
   const late = !done && task.lateSince !== null;
   const [dragging, setDragging] = useState(false);
 
@@ -103,7 +107,12 @@ export function TaskCard({
       >
         <div className="flex items-start gap-2">
           <div className="mt-0.5">
-            <TaskCompletionCircle done={done} onClick={toggleDone} disabled={toggling} />
+            <TaskCompletionCircle
+              done={done}
+              onClick={toggleDone}
+              disabled={toggling || lockedByOther}
+              title={lockedByOther ? "اللي أتمّها بس يقدر يلغي الإتمام" : undefined}
+            />
           </div>
           <span className={`min-w-0 flex-1 text-sm ${done ? "text-foreground-muted line-through" : "text-foreground"}`}>
             {task.title}

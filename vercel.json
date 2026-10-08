@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/rollover-tasks",
       "schedule": "0 22 * * *"
+    },
+    {
+      "path": "/api/cron/telegram-daily",
+      "schedule": "0 5 * * *"
     }
   ]
 }

@@ -20,6 +20,7 @@ export const NAV: NavItem[] = [
   { href: "/company-account", label: "حساب الشركة" },
   { href: "/reports", label: "التقارير" },
   { href: "/audit-logs", label: "سجل التدقيق" },
+  { href: "/telegram", label: "ربط تيليجرام" },
   { href: "/team", label: "المشرفون" },
 ];
 

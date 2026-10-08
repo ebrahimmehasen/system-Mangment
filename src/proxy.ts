@@ -8,8 +8,9 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
+    // /api/telegram/* is excluded too: Telegram calls the webhook with a secret header, not a session.
     // /api/cron/* is excluded — Vercel Cron hits it with no Supabase
     // session cookie; that route checks its own CRON_SECRET instead.
-    "/((?!_next/static|_next/image|favicon.ico|api/cron|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/cron|api/telegram|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

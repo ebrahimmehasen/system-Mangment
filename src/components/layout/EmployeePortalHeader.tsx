@@ -17,6 +17,7 @@ const LINKS = [
   { href: "/employee/calendar", label: "التقويم" },
   { href: "/employee/reminders", label: "تذكيراتي" },
   { href: "/employee/announcements", label: "الإعلانات" },
+  { href: "/employee/telegram", label: "تيليجرام" },
 ];
 
 export function EmployeePortalHeader({

@@ -92,7 +92,7 @@ function priorityRank(p: number): number {
 }
 
 /** Board order inside one column: open before done, then most important priority first, then earlier due time. */
-function compareTasks(a: TaskBucketInput, b: TaskBucketInput): number {
+export function compareTasks(a: TaskBucketInput, b: TaskBucketInput): number {
   if ((a.status === "done") !== (b.status === "done")) return a.status === "done" ? 1 : -1;
   if (a.priority !== b.priority) return priorityRank(a.priority) - priorityRank(b.priority);
   return (a.dueDate?.getTime() ?? 0) - (b.dueDate?.getTime() ?? 0);

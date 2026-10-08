@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bucketizeTasks, parseTaskPriority, shiftYmd } from "./tasks";
+import { bucketizeTasks, parseTaskForm, parseTaskPriority, shiftYmd } from "./tasks";
 
 const at = (iso: string) => new Date(iso);
 const task = (id: string, dueDate: Date | null, priority = 0, status = "todo") => ({
@@ -17,6 +17,18 @@ test("parseTaskPriority accepts blank, 0..99 and rejects the rest", () => {
   assert.equal(parseTaskPriority("100"), null);
   assert.equal(parseTaskPriority("-1"), null);
   assert.equal(parseTaskPriority("5.5"), null);
+});
+
+test("parseTaskForm reads and validates the priority field", () => {
+  const form = (priority: string) => {
+    const f = new FormData();
+    f.set("title", "t");
+    f.set("priority", priority);
+    return parseTaskForm(f);
+  };
+  assert.equal(form("7").parsed.priority, 7);
+  assert.equal(form("").parsed.priority, 0);
+  assert.ok(form("100").errors.priority);
 });
 
 test("shiftYmd crosses month boundaries", () => {

@@ -228,6 +228,7 @@ export async function updateTaskDetailsAction(
         projectId,
         completedAt,
         status: completedAt ? "done" : existing.status,
+        ...(completedAt && !existing.completedById ? { completedById: user.id } : {}),
       },
     });
     await writeAuditLog(

@@ -31,12 +31,18 @@ export interface TaskCardData {
 export function TaskCard({
   task,
   currentUserId,
+  canComplete = true,
+  canMove = true,
   actions,
   canEditDetails = false,
   projects = [],
 }: {
   task: TaskCardData;
   currentUserId: string;
+  /** Only an assignee can complete/reopen. */
+  canComplete?: boolean;
+  /** Only an assignee or the creator can drag the card to another day. */
+  canMove?: boolean;
   actions?: ReactNode;
   /** Admin-only: lets the details modal edit project/completion date. */
   canEditDetails?: boolean;
@@ -92,14 +98,14 @@ export function TaskCard({
         tabIndex={0}
         onClick={openDetail}
         onKeyDown={(e) => e.key === "Enter" && openDetail()}
-        draggable
+        draggable={canMove}
         onDragStart={(e) => {
           e.dataTransfer.setData(TASK_DRAG_TYPE, task.id);
           e.dataTransfer.effectAllowed = "move";
           setDragging(true);
         }}
         onDragEnd={() => setDragging(false)}
-        className={`${dragging ? "opacity-40" : ""} flex cursor-grab active:cursor-grabbing flex-col gap-1.5 rounded-lg border p-2.5 transition-colors hover:border-accent/40 ${
+        className={`${dragging ? "opacity-40" : ""} flex ${canMove ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} flex-col gap-1.5 rounded-lg border p-2.5 transition-colors hover:border-accent/40 ${
           late
             ? "border-warning/30 bg-warning/10 hover:bg-warning/15"
             : `border-border bg-surface-2 hover:bg-surface ${postponementOpacityClass(task.postponementCount)} ${done ? "bg-surface" : ""}`
@@ -110,8 +116,14 @@ export function TaskCard({
             <TaskCompletionCircle
               done={done}
               onClick={toggleDone}
-              disabled={toggling || lockedByOther}
-              title={lockedByOther ? "اللي أتمّها بس يقدر يلغي الإتمام" : undefined}
+              disabled={toggling || lockedByOther || !canComplete}
+              title={
+                !canComplete
+                  ? "المهمة دي مش متعيّنة عليك"
+                  : lockedByOther
+                    ? "اللي أتمّها بس يقدر يلغي الإتمام"
+                    : undefined
+              }
             />
           </div>
           <span className={`min-w-0 flex-1 text-sm ${done ? "text-foreground-muted line-through" : "text-foreground"}`}>

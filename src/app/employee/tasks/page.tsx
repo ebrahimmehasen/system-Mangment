@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { ymdInTz, zonedInputToUtc } from "@/lib/datetime";
-import { bucketizeTasks, lateSinceYmd, shiftYmd } from "@/lib/services/tasks";
+import { bucketizeTasks, lateSinceYmd, shiftYmd, taskAccess } from "@/lib/services/tasks";
 import { getAssignableUsers } from "@/lib/services/assignees";
 import { TaskCard } from "@/components/tasks/TaskCard";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
@@ -91,10 +91,13 @@ export default async function EmployeeTasksPage({
   const { overdue, noDate, days } = bucketizeTasks(tasks, today, from, rangeEnd, true);
 
   function renderTask(t: (typeof tasks)[number]) {
+    const access = taskAccess(t, me.id);
     return (
       <TaskCard
         key={t.id}
         currentUserId={me.id}
+        canComplete={access.isAssignee}
+        canMove={access.canManage}
         task={{
           id: t.id,
           title: t.title,

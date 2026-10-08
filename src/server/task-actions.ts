@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { requireUser, requireAdmin } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit";
-import { parseTaskForm, TASK_STATUSES, type TaskStatus } from "@/lib/services/tasks";
+import { parseTaskForm, taskAccess, TASK_STATUSES, type TaskStatus } from "@/lib/services/tasks";
 import { actionLabel } from "@/lib/audit-labels";
 import { utcToZonedInput, ymdInTz, zonedInputToUtc } from "@/lib/datetime";
 
@@ -14,6 +14,8 @@ export interface TaskActionState {
   values?: Record<string, string>;
   success?: string;
 }
+
+const NOT_YOURS = "المهمة دي مش متعيّنة عليك ومش إنت اللي عملتها.";
 
 function revalidateTaskPaths() {
   revalidatePath("/tasks");
@@ -84,7 +86,7 @@ export async function createTaskAction(
   return { success: "تم إنشاء المهمة." };
 }
 
-/** Any current assignee, or an admin, can update a task's status. */
+/** Only a current assignee can change a task's status (complete / reopen). */
 export async function updateTaskStatusAction(
   taskId: string,
   status: string,
@@ -100,10 +102,7 @@ export async function updateTaskStatusAction(
   });
   if (!task) return { error: "المهمة غير موجودة." };
 
-  const isAssignee = task.assignees.some((a) => a.userId === user.id);
-  if (user.role !== "admin" && !isAssignee) {
-    return { error: "إنت مش معيّن على المهمة دي." };
-  }
+  if (!taskAccess(task, user.id).isAssignee) return { error: "إنت مش معيّن على المهمة دي." };
   if (task.status === status) return {};
   // Only the person who completed a task can take the completion back.
   if (task.status === "done" && task.completedById && task.completedById !== user.id) {
@@ -159,8 +158,12 @@ export async function updateTaskAction(
     return { fieldErrors: errors, values: values as unknown as Record<string, string> };
   }
 
-  const existing = await prisma.task.findUnique({ where: { id: taskId } });
+  const existing = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: { assignees: { select: { userId: true } } },
+  });
   if (!existing) return { error: "المهمة غير موجودة." };
+  if (!taskAccess(existing, user.id).canManage) return { error: NOT_YOURS };
 
   let assigneeIds = formData.getAll("assigneeIds").map(String).filter(Boolean);
   if (assigneeIds.length === 0) assigneeIds = [user.id];
@@ -216,8 +219,12 @@ export async function updateTaskDetailsAction(
 ): Promise<TaskDetailsUpdateState> {
   const user = await requireAdmin();
 
-  const existing = await prisma.task.findUnique({ where: { id: taskId } });
+  const existing = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: { assignees: { select: { userId: true } } },
+  });
   if (!existing) return { error: "المهمة غير موجودة." };
+  if (!taskAccess(existing, user.id).canManage) return { error: NOT_YOURS };
 
   const projectId = String(formData.get("projectId") ?? "").trim() || null;
   const completedAtLocal = String(formData.get("completedAt") ?? "").trim();
@@ -254,16 +261,14 @@ export async function updateTaskDetailsAction(
   return { success: true };
 }
 
-/** Admin can edit any task; a non-admin only one they're assigned to. Returns the task or an error. */
-async function loadEditableTask(taskId: string, user: { id: string; role: string }) {
+/** Loads a task the user may manage (assignee or creator), or an error. */
+async function loadEditableTask(taskId: string, user: { id: string }) {
   const task = await prisma.task.findUnique({
     where: { id: taskId },
     include: { assignees: { select: { userId: true } } },
   });
   if (!task) return { error: "المهمة غير موجودة." } as const;
-  if (user.role !== "admin" && !task.assignees.some((a) => a.userId === user.id)) {
-    return { error: "إنت مش معيّن على المهمة دي." } as const;
-  }
+  if (!taskAccess(task, user.id).canManage) return { error: NOT_YOURS } as const;
   return { task } as const;
 }
 
@@ -312,13 +317,17 @@ export async function moveTaskToDayAction(
   return {};
 }
 
-/** Admin can delete any task; a non-admin only their own (self-created) task. */
+/** Only the task's creator can delete it (or, if the creator account is gone, an assignee). */
 export async function deleteTaskAction(taskId: string): Promise<{ error?: string }> {
   const user = await requireUser();
 
-  const task = await prisma.task.findUnique({ where: { id: taskId } });
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: { assignees: { select: { userId: true } } },
+  });
   if (!task) return { error: "المهمة غير موجودة." };
-  if (user.role !== "admin" && task.createdBy !== user.id) {
+  const access = taskAccess(task, user.id);
+  if (!(access.isCreator || (task.createdBy === null && access.isAssignee))) {
     return { error: "تقدر تحذف بس المهام اللي إنت عملتها." };
   }
 

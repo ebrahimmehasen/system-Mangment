@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bucketizeTasks, lateSinceYmd, parseTaskForm, parseTaskPriority, shiftYmd } from "./tasks";
+import { bucketizeTasks, lateSinceYmd, parseTaskForm, parseTaskPriority, shiftYmd, taskAccess } from "./tasks";
 
 const at = (iso: string) => new Date(iso);
 const task = (id: string, dueDate: Date | null, priority = 0, status = "todo") => ({
@@ -109,4 +109,12 @@ test("lateSinceYmd reports the first missed day, before and after the nightly ro
   assert.equal(lateSinceYmd({ status: "done", dueDate: at("2026-10-03T10:00:00Z"), overdueSince: null }, today), null);
   assert.equal(lateSinceYmd({ status: "todo", dueDate: at("2026-10-08T10:00:00Z"), overdueSince: at("2026-10-03T10:00:00Z") }, today), null);
   assert.equal(lateSinceYmd({ status: "todo", dueDate: at("2026-10-05T10:00:00Z"), overdueSince: null }, today), null);
+});
+
+test("taskAccess: only assignees and the creator can touch a task", () => {
+  const task = { createdBy: "boss", assignees: [{ userId: "ann" }] };
+  assert.deepEqual(taskAccess(task, "ann"), { isAssignee: true, isCreator: false, canManage: true });
+  assert.deepEqual(taskAccess(task, "boss"), { isAssignee: false, isCreator: true, canManage: true });
+  assert.equal(taskAccess(task, "stranger").canManage, false);
+  assert.equal(taskAccess({ createdBy: null, assignees: [] }, "boss").canManage, false);
 });

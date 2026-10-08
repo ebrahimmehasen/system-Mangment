@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/Card";
 import { utcToZonedInput, ymdInTz, zonedInputToUtc } from "@/lib/datetime";
-import { bucketizeTasks, lateSinceYmd, shiftYmd } from "@/lib/services/tasks";
+import { bucketizeTasks, lateSinceYmd, shiftYmd, taskAccess } from "@/lib/services/tasks";
 import { getAssignableUsers } from "@/lib/services/assignees";
 import { createTaskAction, updateTaskAction } from "@/server/task-actions";
 import { TaskCard } from "@/components/tasks/TaskCard";
@@ -95,6 +95,7 @@ export default async function TasksPage({
   };
 
   function renderTask(t: (typeof tasks)[number]) {
+    const access = taskAccess(t, me.id);
     return (
       <TaskCard
         key={t.id}
@@ -112,10 +113,13 @@ export default async function TasksPage({
           project: t.project,
           assignees: t.assignees.map((a) => a.user),
         }}
-        canEditDetails
+        canEditDetails={access.canManage}
+        canComplete={access.isAssignee}
+        canMove={access.canManage}
         projects={projects}
         actions={
           <>
+            {access.canManage && (
             <TaskFormModal
               mode="edit"
               action={updateTaskAction.bind(null, t.id)}
@@ -132,10 +136,13 @@ export default async function TasksPage({
               triggerLabel="تعديل"
               triggerVariant="secondary"
             />
-            {t.assignees.some((a) => a.userId === me.id) && (
+            )}
+            {access.isAssignee && (
               <ForwardAssigneeButton taskId={t.id} candidates={assignees.filter((a) => a.id !== me.id)} />
             )}
-            <DeleteTaskButton taskId={t.id} title={t.title} />
+            {(access.isCreator || (t.createdBy === null && access.isAssignee)) && (
+              <DeleteTaskButton taskId={t.id} title={t.title} />
+            )}
           </>
         }
       />

@@ -55,6 +55,20 @@ export function shiftYmd(ymd: string, days: number): string {
 
 export const TASK_PRIORITY_MAX = 99;
 
+/**
+ * Who may touch a task. A task is only ever changed by someone it is under
+ * the name of: an assignee (complete / reopen / move / edit / forward) or the
+ * person who created it (edit / move / delete). Nobody else — admins included.
+ */
+export function taskAccess(
+  task: { createdBy: string | null; assignees: { userId: string }[] },
+  userId: string,
+): { isAssignee: boolean; isCreator: boolean; canManage: boolean } {
+  const isAssignee = task.assignees.some((a) => a.userId === userId);
+  const isCreator = task.createdBy === userId;
+  return { isAssignee, isCreator, canManage: isAssignee || isCreator };
+}
+
 /** Parses a priority input: blank/0 -> 0 (none), 1..99 -> itself, anything else -> null (invalid). */
 export function parseTaskPriority(raw: unknown): number | null {
   const str = String(raw ?? "").trim();

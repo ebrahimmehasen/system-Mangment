@@ -225,7 +225,8 @@ export async function createAdminAction(
     email,
     password,
     email_confirm: true,
-    user_metadata: { name, role: "admin" },
+    user_metadata: { name },
+    app_metadata: { role: "admin" },
   });
 
   if (error || !data.user) {

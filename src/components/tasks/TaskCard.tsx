@@ -99,7 +99,7 @@ export function TaskCard({
           <span className={`min-w-0 flex-1 text-sm ${done ? "text-foreground-muted line-through" : "text-foreground"}`}>
             {task.title}
           </span>
-          <TaskPriorityInput taskId={task.id} priority={task.priority} />
+          <TaskPriorityInput key={task.priority} taskId={task.id} priority={task.priority} />
         </div>
 
         {task.description && (

@@ -34,7 +34,8 @@ export async function requireUser(): Promise<CurrentUser> {
       id: user.id,
       email: user.email ?? "",
       name: (user.user_metadata?.name as string | undefined) ?? null,
-      role: (user.user_metadata?.role as string | undefined) ?? "admin",
+      // app_metadata is service-role-only; user_metadata is user-editable.
+      role: (user.app_metadata?.role as string | undefined) ?? "employee",
     },
   });
 

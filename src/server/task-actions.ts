@@ -299,7 +299,7 @@ export async function moveTaskToDayAction(
   ymd: string | null,
 ): Promise<{ error?: string }> {
   const user = await requireUser();
-  if (ymd !== null && !/^d{4}-d{2}-d{2}$/.test(ymd)) return { error: "تاريخ غير صالح." };
+  if (ymd !== null && !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return { error: "تاريخ غير صالح." };
 
   const res = await loadEditableTask(taskId, user);
   if ("error" in res) return { error: res.error };

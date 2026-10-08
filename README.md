@@ -50,8 +50,19 @@ prisma/
 
 ## Roadmap
 
-Phase 1 (الحالي): Setup, Schema, Auth, Clients, Projects, Files, Payments/Expenses,
-Audit Logs, Dashboard, Reports.
+منجز: Clients، Projects، Files، Payments/Expenses، Audit Logs، Dashboard، Reports،
+Calendar/Meetings، Export، Employees/Payroll/Company account، بوابة الموظف،
+Target clients، Announcements، Tasks (أولوية + drag-and-drop + ترحيل تلقائي).
 
-Phases 2–7: Calendar/Meetings، تقارير متقدمة + Export، Employees/Roles/Salaries،
-Invoices/Quotations/Contracts، Client Portal، WhatsApp/Email notifications.
+قادم: Invoices/Quotations/Contracts، Client Portal، WhatsApp/Email notifications.
+
+## Security notes
+
+- تسجيل الحسابات الذاتي في Supabase **لازم يكون مقفول** (Authentication → Sign In / Providers → Disable signups).
+- الأدوار تتحدد من `app_metadata` (service-role فقط) — الافتراضي `employee`. التطبيق يتعامل مع البيانات عبر Prisma فقط؛ مفيش سياسات RLS للـ `authenticated`.
+
+## Tests
+
+```bash
+npm test
+```

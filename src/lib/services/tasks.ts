@@ -54,7 +54,7 @@ export const TASK_PRIORITY_MAX = 99;
 export function parseTaskPriority(raw: unknown): number | null {
   const str = String(raw ?? "").trim();
   if (str === "") return 0;
-  if (!/^d{1,2}$/.test(str)) return null;
+  if (!/^\d{1,2}$/.test(str)) return null;
   const n = Number(str);
   return n >= 0 && n <= TASK_PRIORITY_MAX ? n : null;
 }

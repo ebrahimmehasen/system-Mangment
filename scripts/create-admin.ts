@@ -32,7 +32,8 @@ async function main() {
     email,
     password,
     email_confirm: true,
-    user_metadata: { name: name ?? "", role: "admin" },
+    user_metadata: { name: name ?? "" },
+    app_metadata: { role: "admin" },
   });
 
   if (error) {

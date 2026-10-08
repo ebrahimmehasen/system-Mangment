@@ -11,7 +11,8 @@ import { rolloverOverdueTasks } from "@/lib/services/task-rollover";
  */
 export async function GET(request: NextRequest) {
   const auth = request.headers.get("authorization");
-  if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || auth !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "غير مصرّح" }, { status: 401 });
   }
 

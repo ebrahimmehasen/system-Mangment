@@ -1,4 +1,3 @@
-import { after } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/Card";
@@ -6,7 +5,6 @@ import { Badge } from "@/components/ui/Badge";
 import { ymdInTz, zonedInputToUtc } from "@/lib/datetime";
 import { bucketizeTasks, shiftYmd } from "@/lib/services/tasks";
 import { getAssignableUsers } from "@/lib/services/assignees";
-import { rolloverOverdueTasks } from "@/lib/services/task-rollover";
 import { TaskCard } from "@/components/tasks/TaskCard";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
 import { TaskDateNav } from "@/components/tasks/TaskDateNav";
@@ -36,8 +34,6 @@ export default async function EmployeeTasksPage({
   const me = await requireUser();
   const sp = await searchParams;
   const employee = await prisma.employee.findUniqueOrThrow({ where: { userId: me.id } });
-
-  after(() => rolloverOverdueTasks());
 
   const today = ymdInTz(new Date());
   const from = sp.from && /^\d{4}-\d{2}-\d{2}$/.test(sp.from) ? sp.from : today;

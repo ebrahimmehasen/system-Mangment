@@ -1,12 +1,10 @@
 import Link from "next/link";
-import { after } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/Card";
 import { ymdInTz, zonedInputToUtc } from "@/lib/datetime";
 import { bucketizeTasks, shiftYmd } from "@/lib/services/tasks";
 import { getAssignableUsers } from "@/lib/services/assignees";
-import { rolloverOverdueTasks } from "@/lib/services/task-rollover";
 import { createTaskAction, updateTaskAction } from "@/server/task-actions";
 import { TaskCard } from "@/components/tasks/TaskCard";
 import { TaskBoard } from "@/components/tasks/TaskBoard";
@@ -26,12 +24,6 @@ export default async function TasksPage({
 }) {
   const me = await requireUser();
   const sp = await searchParams;
-
-  // Server-side idempotent rollover — same fn the cron hits. Scheduled via
-  // after() so it runs post-response instead of blocking this page's
-  // render/refresh on a full table scan every single load (that was the
-  // main cause of "المهام تقيلة بعد أي تعديل").
-  after(() => rolloverOverdueTasks());
 
   const tab = sp.tab === "mine" ? "mine" : "all";
   const status = sp.status === "pending" || sp.status === "done" ? sp.status : "all";
